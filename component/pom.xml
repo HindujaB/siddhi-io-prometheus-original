@@ -128,9 +128,9 @@
                         <Include-Resource>
                             META-INF=target/classes/META-INF
                         </Include-Resource>
-                        <!--<Private-Package>-->
-                        <!--io.prometheus.client.exporter.*-->
-                        <!--</Private-Package>-->
+                        <Private-Package>
+                            io.prometheus.client.exporter.*
+                        </Private-Package>
                     </instructions>
                 </configuration>
             </plugin>
