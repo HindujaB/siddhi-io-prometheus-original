@@ -10,6 +10,9 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.exception.SiddhiAppCreationException;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 
+/**
+ * Test cases for invalid sink definitions.
+ */
 public class ExceptionTestcase {
     private static final Logger log = Logger.getLogger(ExceptionTestcase.class);
     private static String pushgatewayURL;

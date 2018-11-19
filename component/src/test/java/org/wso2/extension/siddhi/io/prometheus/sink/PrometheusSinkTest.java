@@ -31,6 +31,20 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Test cases for prometheus sink in server and pushgateway publish mode.
+ * Prometheus server and pushgateway must be up and running for the testcases to pass.
+ * Targets must be configured inside the Prometheus configuration file (prometheus.yml) as,
+ * - job_name: 'server'
+ * honor_labels: true
+ * static_configs:
+ * - targets: ['localhost:9090']
+ * <p>
+ * - job_name: 'pushgateway'
+ * honor_labels: true
+ * static_configs:
+ * - targets: ['localhost:9091']
+ */
 public class PrometheusSinkTest {
 
     private static final Logger log = Logger.getLogger(PrometheusSinkTest.class);
@@ -47,8 +61,8 @@ public class PrometheusSinkTest {
     public static void startTest() {
         executorService = Executors.newFixedThreadPool(5);
         log.info("== Prometheus connection tests started ==");
-        pushgatewayURL = "http://localhost:9095";
-        serverURL = "http://localhost:9096";
+        pushgatewayURL = "http://localhost:9091";
+        serverURL = "http://localhost:9090";
         buckets = "2, 4, 6, 8";
         quantiles = "0.4,0.65,0.85";
     }
