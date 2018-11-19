@@ -1,9 +1,12 @@
-﻿siddhi-io-prometheus
+﻿Siddhi-io-prometheus
 ======================================
 
+The **siddhi-io-prometheus extension** is an extension to <a target="_blank" href="https://wso2.github.io/siddhi">Siddhi</a>. It publishes siddhi events as Prometheus metrics and expose them to Prometheus server.
 
+## Prerequisites
 
-
+* Prometheus server instance should be started.
+* Prometheus Pushgateway should be started. (optional)
 
 **Using the extension in <a target="_blank" href="https://github.com/wso2/product-sp">WSO2 Stream Processor</a>**
 
@@ -18,7 +21,7 @@
 ```
      <dependency>
         <groupId>org.wso2.extension.siddhi.io.</groupId>
-        <artifactId>siddhi-io-</artifactId>
+        <artifactId>siddhi-io-prometheus</artifactId>
         <version>x.x.x</version>
      </dependency>
 ```
