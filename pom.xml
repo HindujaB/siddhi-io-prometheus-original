@@ -167,6 +167,7 @@
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
         <carbon.feature.plugin.version>3.0.0</carbon.feature.plugin.version>
         <testng.version>6.11</testng.version>
+        <io.prometheus.exporter.version>0.5.0</io.prometheus.exporter.version>
         <prometheus.simpleclient.version>0.5.0</prometheus.simpleclient.version>
         <prometheus.pushgateway.version>0.5.0</prometheus.pushgateway.version>
         <prometheus.httpserver.version>0.5.0</prometheus.httpserver.version>

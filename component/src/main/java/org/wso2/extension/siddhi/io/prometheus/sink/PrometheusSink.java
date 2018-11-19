@@ -334,7 +334,7 @@ public class PrometheusSink extends Sink {
         try {
             this.quantileError = parseDouble(optionHolder.validateAndGetStaticValue(
                     PrometheusConstants.QUANTILE_ERROR, DEFAULT_ERROR));
-            if (quantileError < 0 || quantileError > 1.0) {
+            if (quantileError < 0 || quantileError >= 1.0) {
                 throw new NumberFormatException();
             }
         } catch (NumberFormatException e) {
@@ -484,7 +484,10 @@ public class PrometheusSink extends Sink {
      */
     @Override
     public void destroy() {
-        prometheusMetricBuilder.getRegistry().clear();
+        CollectorRegistry registry = prometheusMetricBuilder.getRegistry();
+        if (registry != null) {
+            registry.clear();
+        }
     }
 
     /**
