@@ -8,6 +8,13 @@ The **siddhi-io-prometheus extension** is an extension to <a target="_blank" hre
 * Prometheus server instance should be started.
 * Prometheus Pushgateway should be started. (optional)
 
+Find some useful links below:
+* <a target="_blank" href="https://github.com/HindujaB/siddhi-io-prometheus">Source code</a>
+* Releases
+* Issue tracker
+
+##How to use
+
 **Using the extension in <a target="_blank" href="https://github.com/wso2/product-sp">WSO2 Stream Processor</a>**
 
 * You can use this extension in the latest <a target="_blank" href="https://github.com/wso2/product-sp/releases">WSO2 Stream Processor</a> that is a part of <a target="_blank" href="http://wso2.com/analytics?utm_source=gitanalytics&utm_campaign=gitanalytics_Jul17">WSO2 Analytics</a> offering, with editor, debugger and simulation support.
@@ -26,14 +33,21 @@ The **siddhi-io-prometheus extension** is an extension to <a target="_blank" hre
      </dependency>
 ```
 
+##Features
 
+* prometheus(<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#sink">sink</a>)
+The prometheus sink publishes events processed by WSO2 SP into Prometheus metrics and expose them to Prometheus server at the provided url. The created metrics can be published to Prometheus through 'server' or 'pushGateway' publishing modes according to user preference. The server mode exposes the metrics through an http server at the provided url and the pushGateway mode pushes the metrics to pushGateway which must be running at the provided url. The metric types that are supported by Prometheus sink are counter, gauge, histogram and summary. And the values and labels of the Prometheus metrics can be updated through the events.
 
+* prometheus(<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#source">source</a>)
 
+##How to contribute
+* Report issues at <a target="_blank" href="https://github.com/HindujaB/siddhi-io-prometheus/issues">GitHub Issue Tracker</a>.
 
+* Send your contributions as pull requests to the <a target="_blank"https://github.com/HindujaB/siddhi-io-prometheus">master branch</a>.
 
-
-
+##Contact us
  * Post your questions with the <a target="_blank" href="http://stackoverflow.com/search?q=siddhi">"Siddhi"</a> tag in <a target="_blank" href="http://stackoverflow.com/search?q=siddhi">Stackoverflow</a>.
+
 
  * Siddhi developers can be contacted via the mailing lists:
 
@@ -41,7 +55,7 @@ The **siddhi-io-prometheus extension** is an extension to <a target="_blank" hre
 
     Architecture List : [architecture@wso2.org](mailto:architecture@wso2.org)
 
-
+##Support
 * We are committed to ensuring support for this extension in production. Our unique approach ensures that all support leverages our open development methodology and is provided by the very same engineers who build the technology.
 
 * For more details and to take advantage of this unique opportunity contact us via <a target="_blank" href="http://wso2.com/support?utm_source=gitanalytics&utm_campaign=gitanalytics_Jul17">http://wso2.com/support/</a>.
