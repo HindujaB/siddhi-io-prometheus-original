@@ -532,9 +532,5 @@ public class PrometheusSink extends Sink {
         }
         return "";
     }
-
-    public final CollectorRegistry getRegistry() {
-        return prometheusMetricBuilder.getRegistry();
-    }
 }
 
