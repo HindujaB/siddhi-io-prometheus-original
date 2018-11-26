@@ -91,14 +91,14 @@
                         <artifactId>docker-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>start-docker-for-prometheus</id>
+                                <id>start-local-prometheus</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>
                                     <goal>start</goal>
                                 </goals>
                             </execution>
                             <execution>
-                                <id>stop-docker-for-prometheus</id>
+                                <id>stop-local-prometheus</id>
                                 <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>stop</goal>
@@ -110,7 +110,7 @@
                             <images>
                                 <image>
                                     <alias>siddhi-io-prometheus</alias>
-                                    <name>prometheus</name>
+                                    <name>prom/prometheus</name>
                                     <run>
                                         <volumes>
                                             <bind>
@@ -129,7 +129,7 @@
                                                     <port>9090</port>
                                                 </ports>
                                             </tcp>
-                                            <time>60000</time>
+                                            <time>600000</time>
                                         </wait>
                                     </run>
                                 </image>
@@ -157,6 +157,12 @@
                             </execution>
                         </executions>
                         <configuration>
+                            <environmentVariables>
+                                <PROMETHEUS_PORT>9090</PROMETHEUS_PORT>
+                                <PUSHGATEWAY_PORT>9091</PUSHGATEWAY_PORT>
+                                <SERVER_PORT>9080</SERVER_PORT>
+                                <HOST_IP>127.0.0.1</HOST_IP>
+                            </environmentVariables>
                             <suiteXmlFiles>
                                 <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
                             </suiteXmlFiles>
@@ -182,6 +188,7 @@
                     <suiteXmlFiles>
                         <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
             <plugin>
