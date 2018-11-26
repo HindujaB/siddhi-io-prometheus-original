@@ -62,7 +62,7 @@ public class PrometheusSinkTest {
         executorService = Executors.newFixedThreadPool(5);
         log.info("== Prometheus connection tests started ==");
         pushgatewayURL = "http://localhost:9091";
-        serverURL = "http://localhost:9090";
+        serverURL = "http://localhost:9080";
         buckets = "2, 4, 6, 8";
         quantiles = "0.4,0.65,0.85";
     }

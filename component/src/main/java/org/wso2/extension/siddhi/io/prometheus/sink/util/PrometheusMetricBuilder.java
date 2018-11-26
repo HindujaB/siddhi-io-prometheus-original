@@ -23,6 +23,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import io.prometheus.client.SimpleCollector;
 import io.prometheus.client.SimpleCollector.Builder;
 import io.prometheus.client.Summary;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
@@ -58,11 +59,11 @@ public class PrometheusMetricBuilder {
     }
 
     public void setHistogramBuckets(double[] histogramBuckets) {
-        this.histogramBuckets = histogramBuckets;
+        this.histogramBuckets = histogramBuckets.clone();
     }
 
     public void setQuantiles(double[] summaryQuantiles, Double quantileError) {
-        this.summaryQuantiles = summaryQuantiles;
+        this.summaryQuantiles = summaryQuantiles.clone();
         this.quantileError = quantileError;
     }
 
@@ -80,7 +81,12 @@ public class PrometheusMetricBuilder {
         attributes.remove(valueAttribute);
         String[] metricLabels = attributes.toArray(new String[0]);
 
-        Builder builder = null;
+        Builder builder = new Builder() {
+            @Override
+            public SimpleCollector create() {
+                return null;
+            }
+        };
         switch (metricType) {
             case COUNTER: {
                 builder = Counter.build(metricName, metricHelp);
