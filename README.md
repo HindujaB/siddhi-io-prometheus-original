@@ -11,7 +11,7 @@ The **siddhi-io-prometheus extension** is an extension to <a target="_blank" hre
 Find some useful links below:
 * <a target="_blank" href="https://github.com/HindujaB/siddhi-io-prometheus">Source code</a>
 * Releases
-* Issue tracker
+* <a target="_blank" href="https://github.com/HindujaB/siddhi-io-prometheus/issues">Issue tracker</a>
 
 ## How to use
 
@@ -49,9 +49,9 @@ Find some useful links below:
 ## How to contribute
 * Report issues at <a target="_blank" href="https://github.com/HindujaB/siddhi-io-prometheus/issues">GitHub Issue Tracker</a>.
 
-* Send your contributions as pull requests to the <a target="_blank"https://github.com/HindujaB/siddhi-io-prometheus">master branch</a>.
+* Send your contributions as pull requests to the <a target="_blank" href="https://github.com/HindujaB/siddhi-io-prometheus">master branch</a>.
 
-## Running Integration tests in docker containers(Optional)
+## Running Integration tests in docker containers (Optional)
 * The prometheus sink can be tested with the docker base integration test framework. The test framework initialize a docker container with required configuration before execute the test suit.
    
   To start integration tests,
