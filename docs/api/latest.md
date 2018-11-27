@@ -4,11 +4,11 @@
 
 ### prometheus *<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#sink">(Sink)</a>*
 
-<p style="word-wrap: break-word">The sink publishes events processed by WSO2 SP into Prometheus metrics and expose " +<br>"them to Prometheus server at the provided url. The created metrics can be published to " +<br>"Prometheus through 'server' or 'pushGateway' publishing modes according to user preference." +<br>"The server mode exposes the metrics through an http server at the provided url and the " +<br>" pushGateway mode pushes the metrics to pushGateway which must be running at the  " +<br>"provided url. The metric types that are supported by Prometheus sink are counter, gauge, " +<br>"histogram and summary. And the values and labels of the Prometheus metrics can be updated " +<br>"through the events. </p>
+<p style="word-wrap: break-word">The sink publishes events processed by WSO2 SP into Prometheus metrics and expose <br>them to Prometheus server at the provided url. The created metrics can be published to <br>Prometheus through 'server' or 'pushGateway' publishing modes according to user preference.<br>The server mode exposes the metrics through an http server at the provided url and the <br>&nbsp;pushGateway mode pushes the metrics to pushGateway which must be running at the <br>provided url. The metric types that are supported by Prometheus sink are counter, gauge,<br>histogram and summary. And the values and labels of the Prometheus metrics can be updated <br>through the events. </p>
 
 <span id="syntax" class="md-typeset" style="display: block; font-weight: bold;">Syntax</span>
 ```
-@sink(type="prometheus", job="<STRING>", publish.mode="<STRING>", push.url="<STRING>", server.url="<STRING>", metric.type="<STRING>", metric.help="<STRING>", metric.name="<STRING>", buckets="<OBJECT>", quantiles="<STRING>", quantile.error="<DOUBLE>", value.attribute="<STRING>", push.operation="<STRING>", grouping.key="<STRING>", @map(...)))
+@sink(type="prometheus", job="<STRING>", publish.mode="<STRING>", push.url="<STRING>", server.url="<STRING>", metric.type="<STRING>", metric.help="<STRING>", metric.name="<STRING>", buckets="<STRING>", quantiles="<STRING>", quantile.error="<DOUBLE>", value.attribute="<STRING>", push.operation="<STRING>", grouping.key="<STRING>", @map(...)))
 ```
 
 <span id="query-parameters" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">QUERY PARAMETERS</span>
@@ -64,7 +64,7 @@
     <tr>
         <td style="vertical-align: top">metric.help</td>
         <td style="vertical-align: top; word-wrap: break-word">A brief description of the metric and its purpose. By default, the help string will be a combination of the metric name and its type.</td>
-        <td style="vertical-align: top">help</td>
+        <td style="vertical-align: top">metric name with metric type</td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
@@ -81,7 +81,7 @@
         <td style="vertical-align: top">buckets</td>
         <td style="vertical-align: top; word-wrap: break-word">The user preferred bucket values for histogram metrics. The bucket values must be in string format with each bucket value separated by a comma.Expected format of the parameter is as follows: " +<br>"2,4,6,8"</td>
         <td style="vertical-align: top">null</td>
-        <td style="vertical-align: top">OBJECT</td>
+        <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
     </tr>
@@ -103,7 +103,7 @@
     </tr>
     <tr>
         <td style="vertical-align: top">value.attribute</td>
-        <td style="vertical-align: top; word-wrap: break-word">The name of the attribute in stream definition which specifies the metric value. The defined value attribute must be included inside the stream attributes. The value of the value attribute that published through events will increase the metric value for counter and gauge metric types. And for histogram and summary metric types, the values will be observed. By default, the value attribute is specified as 'value' </td>
+        <td style="vertical-align: top; word-wrap: break-word">The name of the attribute in stream definition which specifies the metric value. The defined value attribute must be included inside the stream attributes. <br>The value of the value attribute that published through events will increase the metric value for counter and gauge metric types. And for histogram and summary metric types, the values will be observed. By default, the value attribute is specified as 'value' </td>
         <td style="vertical-align: top">value</td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
@@ -130,33 +130,21 @@
 <span id="examples" class="md-typeset" style="display: block; font-weight: bold;">Examples</span>
 <span id="example-1" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 1</span>
 ```
-@sink(type='prometheus',job='fooOrderCount', target='http://localhost:9080', build.mode='server', metric.type='counter', metric.help= 'Number of foo orders', @map(type='keyvalue'))define stream FooCountStream (Name String, quantity int, value int);
+@sink(type='prometheus',job='fooOrderCount', target='http://localhost:9080',
+ build.mode='server', metric.type='counter', 
+metric.help= 'Number of foo orders', @map(type='keyvalue'))
+define stream FooCountStream (Name String, quantity int, value int);
 
 ```
-<p style="word-wrap: break-word"> In the above example, the Prometheus-sink will create a counter metric with the Stream name and defined attributes as labels. The metric will be exposed through an http server at the target url.</p>
+<p style="word-wrap: break-word"> In the above example, the Prometheus-sink will create a counter metric with the Stream name and defined attributes as labels. <br>&nbsp;The metric will be exposed through an http server at the target url.</p>
 
 <span id="example-2" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 2</span>
 ```
-@sink(type='prometheus',job='inventoryLevel', target='http://localhost:9080', build.mode='pushGateway', metric.type='gauge', metric.help= 'Current level of inventory', @map(type='keyvalue'))define stream InventoryLevelStream (Name String, value int);
+@sink(type='prometheus',job='inventoryLevel', target='http://localhost:9080',
+ build.mode='pushGateway', metric.type='gauge',
+ metric.help= 'Current level of inventory', @map(type='keyvalue'))
+define stream InventoryLevelStream (Name String, value int);
 
 ```
-<p style="word-wrap: break-word"> In the above example, the Prometheus-sink will create a gauge metric with the Stream name and defined attributes as labels.The metric will be pushed to Prometheus pushGateway at the target url.</p>
-
-## Source
-
-### prometheus *<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#source">(Source)</a>*
-
-<p style="word-wrap: break-word"> </p>
-
-<span id="syntax" class="md-typeset" style="display: block; font-weight: bold;">Syntax</span>
-```
-@source(type="prometheus", @map(...)))
-```
-
-<span id="examples" class="md-typeset" style="display: block; font-weight: bold;">Examples</span>
-<span id="example-1" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 1</span>
-```
- 
-```
-<p style="word-wrap: break-word"> </p>
+<p style="word-wrap: break-word"> In the above example, the Prometheus-sink will create a gauge metric with the Stream name and defined attributes as labels.<br>The metric will be pushed to Prometheus pushGateway at the target url.</p>
 

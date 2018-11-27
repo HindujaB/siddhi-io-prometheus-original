@@ -72,14 +72,14 @@ import static java.lang.Double.parseDouble;
 @Extension(
         name = "prometheus",
         namespace = "sink",
-        description = "The sink publishes events processed by WSO2 SP into Prometheus metrics and expose \" +\n" +
-                "\"them to Prometheus server at the provided url. The created metrics can be published to \" +\n" +
-                "\"Prometheus through 'server' or 'pushGateway' publishing modes according to user preference.\" +\n" +
-                "\"The server mode exposes the metrics through an http server at the provided url and the \" +\n" +
-                "\" pushGateway mode pushes the metrics to pushGateway which must be running at the  \" +\n" +
-                "\"provided url. The metric types that are supported by Prometheus sink are counter, gauge, \" +\n" +
-                "\"histogram and summary. And the values and labels of the Prometheus metrics can be updated \" +\n" +
-                "\"through the events. ",
+        description = "The sink publishes events processed by WSO2 SP into Prometheus metrics and expose \n" +
+                "them to Prometheus server at the provided url. The created metrics can be published to \n" +
+                "Prometheus through 'server' or 'pushGateway' publishing modes according to user preference.\n" +
+                "The server mode exposes the metrics through an http server at the provided url and the \n" +
+                " pushGateway mode pushes the metrics to pushGateway which must be running at the \n" +
+                "provided url. The metric types that are supported by Prometheus sink are counter, gauge,\n" +
+                "histogram and summary. And the values and labels of the Prometheus metrics can be updated \n" +
+                "through the events. ",
         parameters = {
                 @Parameter(
                         name = "job",
@@ -126,7 +126,7 @@ import static java.lang.Double.parseDouble;
                                 " By default, the help string " +
                                 "will be a combination of the metric name and its type.",
                         optional = true,
-                        defaultValue = "help",
+                        defaultValue = "metric name with metric type",
                         type = {DataType.STRING}
                 ),
                 @Parameter(
@@ -146,7 +146,7 @@ import static java.lang.Double.parseDouble;
                                 "\"2,4,6,8\"",
                         optional = true,
                         defaultValue = "null",
-                        type = {DataType.OBJECT}
+                        type = {DataType.STRING}
                 ),
                 @Parameter(
                         name = "quantiles",
@@ -170,7 +170,7 @@ import static java.lang.Double.parseDouble;
                 @Parameter(
                         name = "value.attribute",
                         description = "The name of the attribute in stream definition which specifies the metric " +
-                                "value. The defined value attribute must be included inside the stream attributes. " +
+                                "value. The defined value attribute must be included inside the stream attributes. \n" +
                                 "The value of the value attribute that published through events will increase the" +
                                 " metric value for counter and gauge metric types. And for histogram and " +
                                 "summary metric types, the values will be observed." +
@@ -206,22 +206,22 @@ import static java.lang.Double.parseDouble;
         examples = {
                 @Example(
                         syntax =
-                                "@sink(type='prometheus',job='fooOrderCount', target='http://localhost:9080', " +
-                                        "build.mode='server', metric.type='counter', " +
-                                        "metric.help= 'Number of foo orders', @map(type='keyvalue'))" +
+                                "@sink(type='prometheus',job='fooOrderCount', target='http://localhost:9080',\n " +
+                                        "build.mode='server', metric.type='counter', \n" +
+                                        "metric.help= 'Number of foo orders', @map(type='keyvalue'))\n" +
                                         "define stream FooCountStream (Name String, quantity int, value int);\n",
                         description = " In the above example, the Prometheus-sink will create a counter metric " +
-                                "with the Stream name and defined attributes as labels. The metric will be exposed" +
+                                "with the Stream name and defined attributes as labels. \n The metric will be exposed" +
                                 " through an http server at the target url."
                 ),
                 @Example(
                         syntax =
-                                "@sink(type='prometheus',job='inventoryLevel', target='http://localhost:9080', " +
-                                        "build.mode='pushGateway', metric.type='gauge'," +
-                                        " metric.help= 'Current level of inventory', @map(type='keyvalue'))" +
+                                "@sink(type='prometheus',job='inventoryLevel', target='http://localhost:9080',\n " +
+                                        "build.mode='pushGateway', metric.type='gauge',\n" +
+                                        " metric.help= 'Current level of inventory', @map(type='keyvalue'))\n" +
                                         "define stream InventoryLevelStream (Name String, value int);\n",
                         description = " In the above example, the Prometheus-sink will create a gauge metric " +
-                                "with the Stream name and defined attributes as labels." +
+                                "with the Stream name and defined attributes as labels.\n" +
                                 "The metric will be pushed to Prometheus pushGateway at the target url."
                 )
         }
