@@ -24,17 +24,17 @@
     <tr>
         <td style="vertical-align: top">job</td>
         <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the job name of the metric. The name must be the same job name as defined in the prometheus configuration file.</td>
-        <td style="vertical-align: top"></td>
+        <td style="vertical-align: top">siddhiJob</td>
         <td style="vertical-align: top">STRING</td>
-        <td style="vertical-align: top">No</td>
+        <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
     </tr>
     <tr>
         <td style="vertical-align: top">publish.mode</td>
-        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the mode of exposing metrics to Prometheus server.The mode can be either 'server' or 'pushGateway'.</td>
+        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the mode of exposing metrics to Prometheus server.The mode can be either 'server' or 'pushgateway'.</td>
         <td style="vertical-align: top">server</td>
         <td style="vertical-align: top">STRING</td>
-        <td style="vertical-align: top">No</td>
+        <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
     </tr>
     <tr>
@@ -79,7 +79,7 @@
     </tr>
     <tr>
         <td style="vertical-align: top">buckets</td>
-        <td style="vertical-align: top; word-wrap: break-word">The user preferred bucket values for histogram metrics. The bucket values must be in string format with each bucket value separated by a comma.Expected format of the parameter is as follows: " +<br>"2,4,6,8"</td>
+        <td style="vertical-align: top; word-wrap: break-word">The user preferred bucket values for histogram metrics. The bucket values must be in string format with each bucket value separated by a comma.Expected format of the parameter is as follows: <br>"2,4,6,8"</td>
         <td style="vertical-align: top">null</td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
@@ -87,7 +87,7 @@
     </tr>
     <tr>
         <td style="vertical-align: top">quantiles</td>
-        <td style="vertical-align: top; word-wrap: break-word">The user preferred quantile values for summary metrics. The quantile values must be in string format with each quantile value separated by a comma.Expected format of the parameter is as follows: " +<br>"0.5,0.75,0.95"</td>
+        <td style="vertical-align: top; word-wrap: break-word">The user preferred quantile values for summary metrics. The quantile values must be in string format with each quantile value separated by a comma.Expected format of the parameter is as follows: <br>"0.5,0.75,0.95"</td>
         <td style="vertical-align: top">null</td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
@@ -127,11 +127,51 @@
     </tr>
 </table>
 
+<span id="system-parameters" class="md-typeset" style="display: block; font-weight: bold;">System Parameters</span>
+<table>
+    <tr>
+        <th>Name</th>
+        <th style="min-width: 20em">Description</th>
+        <th>Default Value</th>
+        <th>Possible Parameters</th>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">jobName</td>
+        <td style="vertical-align: top; word-wrap: break-word">This is the property that specifies the default job name for the metric. The name must be the same job name as defined in the prometheus configuration file.</td>
+        <td style="vertical-align: top">siddhiJob</td>
+        <td style="vertical-align: top">Any string</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">publishMode</td>
+        <td style="vertical-align: top; word-wrap: break-word">The default publish mode for the Prometheus sink for exposing metrics to Prometheus server. The mode can be either 'server' or 'pushgateway'. </td>
+        <td style="vertical-align: top">server</td>
+        <td style="vertical-align: top">server or pushgateway</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">serverURL</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property configures the url where the http server will be initiated to expose metrics. This url must be previously defined in prometheus configuration file as a target to be identified by Prometheus. By default, the http server will be initiated at 'http://localhost:9080'</td>
+        <td style="vertical-align: top">http://localhost:9080</td>
+        <td style="vertical-align: top">Any valid URL</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">pushURL</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property configures the target url of Prometheus pushGateway where the pushGateway must be listening. This url should be previously defined in prometheus configuration file as a target to be identified by Prometheus.</td>
+        <td style="vertical-align: top">http://localhost:9091</td>
+        <td style="vertical-align: top">Any valid URL</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">groupingKey</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property configures the grouping key of created metrics in key-value pairs. Grouping key is used only in pushGateway mode in order to distinguish the metrics from already existing metrics under same job. The expected format of the grouping key is as follows: "'key1:value1','key2:value2'"</td>
+        <td style="vertical-align: top">null</td>
+        <td style="vertical-align: top">Any key value pairs in the supported format</td>
+    </tr>
+</table>
+
 <span id="examples" class="md-typeset" style="display: block; font-weight: bold;">Examples</span>
 <span id="example-1" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 1</span>
 ```
-@sink(type='prometheus',job='fooOrderCount', target='http://localhost:9080',
- build.mode='server', metric.type='counter', 
+@sink(type='prometheus',job='fooOrderCount', server.url ='http://localhost:9080',
+ publish.mode='server', metric.type='counter', 
 metric.help= 'Number of foo orders', @map(type='keyvalue'))
 define stream FooCountStream (Name String, quantity int, value int);
 
@@ -140,11 +180,29 @@ define stream FooCountStream (Name String, quantity int, value int);
 
 <span id="example-2" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 2</span>
 ```
-@sink(type='prometheus',job='inventoryLevel', target='http://localhost:9080',
- build.mode='pushGateway', metric.type='gauge',
+@sink(type='prometheus',job='inventoryLevel', push.url='http://localhost:9080',
+ publish.mode='pushGateway', metric.type='gauge',
  metric.help= 'Current level of inventory', @map(type='keyvalue'))
 define stream InventoryLevelStream (Name String, value int);
 
 ```
 <p style="word-wrap: break-word"> In the above example, the Prometheus-sink will create a gauge metric with the Stream name and defined attributes as labels.<br>The metric will be pushed to Prometheus pushGateway at the target url.</p>
+
+## Source
+
+### prometheus *<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#source">(Source)</a>*
+
+<p style="word-wrap: break-word"> </p>
+
+<span id="syntax" class="md-typeset" style="display: block; font-weight: bold;">Syntax</span>
+```
+@source(type="prometheus", @map(...)))
+```
+
+<span id="examples" class="md-typeset" style="display: block; font-weight: bold;">Examples</span>
+<span id="example-1" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 1</span>
+```
+ 
+```
+<p style="word-wrap: break-word"> </p>
 

@@ -2,16 +2,16 @@
 <module org.jetbrains.idea.maven.project.MavenProjectsManager.isMavenModule="true" type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="Osmorc" name="OSGi">
-      <configuration manifestGenerationMode="Bnd" manifestLocation="${_include}" jarfileLocation="siddhi-io-prometheus-1.0.0-SNAPSHOT.jar" outputPathType="CompilerOutputPath" bndFileLocation="" bundlorFileLocation="" bundleActivator="${bundle.activator}" bundleSymbolicName="siddhi-io-prometheus" bundleVersion="1.0.0.SNAPSHOT" ignoreFilePattern="" useProjectDefaultManifestFileLocation="false" alwaysRebuildBundleJAR="false" doNotSynchronizeWithMaven="false">
+      <configuration manifestGenerationMode="Manually" manifestLocation="${_include}" jarfileLocation="siddhi-io-prometheus-1.0.0-SNAPSHOT.jar" outputPathType="CompilerOutputPath" bndFileLocation="" bundlorFileLocation="" bundleActivator="${bundle.activator}" bundleSymbolicName="siddhi-io-prometheus" bundleVersion="1.0.0.SNAPSHOT" ignoreFilePattern="" useProjectDefaultManifestFileLocation="false" alwaysRebuildBundleJAR="false" doNotSynchronizeWithMaven="false">
         <additionalProperties>
           <property key="Bundle-Description" value="WSO2 is an open source application development software company focused on providing service-orientedarchitecture solutions for professional developers." />
           <property key="Bundle-Vendor" value="WSO2 Inc" />
           <property key="Bundle-DocURL" value="https://docs.wso2.com" />
           <property key="Bundle-Name" value="siddhi-io-prometheus" />
           <property key="Export-Package" value="org.wso2.extension.siddhi.io.prometheus,org.wso2.extension.siddhi.io.prometheus.*" />
-          <property key="Import-Package" value="*;resolution:=optional;" />
+          <property key="Import-Package" value="io.prometheus.client.exporter.*; version=&quot;[0.5.0,)&quot;org.wso2.siddhi.*; version=&quot;[4.2.28,5.0.0)&quot;" />
           <property key="DynamicImport-Package" value="*" />
-          <property key="Include-Resource" value="META-INF=$MODULE_DIR$/target/classes/META-INF" />
+          <property key="Include-Resource" value="META-INF=target/classes/META-INF" />
           <property key="Private-Package" value="io.prometheus.client.exporter.*" />
           <property key="Bundle-ActivationPolicy" value="${bundle.activation.policy}" />
           <property key="Bundle-ClassPath" value="." />
@@ -48,7 +48,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-core:4.1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-core:4.2.31" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:slf4j-simple:1.7.12" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.12" level="project" />
     <orderEntry type="library" name="Maven: org.wso2.orbit.com.lmax:disruptor:3.3.2.wso2v2" level="project" />
@@ -59,41 +59,27 @@
     <orderEntry type="library" name="Maven: io.dropwizard.metrics:metrics-core:3.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.8.0" level="project" />
     <orderEntry type="library" name="Maven: com.jayway.jsonpath:json-path:2.2.0" level="project" />
+    <orderEntry type="library" name="Maven: net.minidev:json-smart:2.2.1" level="project" />
+    <orderEntry type="library" name="Maven: net.minidev:accessors-smart:1.1" level="project" />
+    <orderEntry type="library" name="Maven: org.ow2.asm:asm:5.0.3" level="project" />
     <orderEntry type="library" name="Maven: org.eclipse.osgi:org.eclipse.osgi.services:3.3.100.v20120522-1822" level="project" />
     <orderEntry type="library" name="Maven: org.osgi:org.osgi.core:6.0.0" level="project" />
-    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-annotations:4.1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-annotations:4.2.31" level="project" />
     <orderEntry type="library" name="Maven: org.atteo.classindex:classindex:3.4" level="project" />
-    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-query-compiler:4.1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-query-compiler:4.2.31" level="project" />
     <orderEntry type="library" name="Maven: org.mvel:mvel2:2.2.1.Final" level="project" />
     <orderEntry type="library" name="Maven: org.antlr:antlr4-runtime:4.5.1" level="project" />
-    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-query-api:4.1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.wso2.siddhi:siddhi-query-api:4.2.31" level="project" />
     <orderEntry type="library" name="Maven: org.apache.log4j.wso2:log4j:1.2.17.wso2v1" level="project" />
     <orderEntry type="library" name="Maven: log4j:log4j:1.2.17" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.testng:testng:6.11" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.beust:jcommander:1.64" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.yaml:snakeyaml:1.17" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.wso2.extension.siddhi.map.xml:siddhi-map-xml:4.0.11" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.ws.commons.axiom:axiom-api:1.2.20" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.geronimo.specs:geronimo-activation_1.1_spec:1.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: commons-logging:commons-logging:1.2" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.geronimo.specs:geronimo-stax-api_1.0_spec:1.0.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.ws.commons.axiom:axiom-impl:1.2.20" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.codehaus.woodstox:woodstox-core-asl:4.2.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.codehaus.woodstox:stax2-api:3.1.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.james:apache-mime4j-core:0.7.2" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: jaxen:jaxen:1.1.6" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.wso2.extension.siddhi.map.json:siddhi-map-json:4.0.15" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.7.4" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.7.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: com.fasterxml.jackson.core:jackson-core:2.7.4" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.wso2.orbit.org.apache.tapestry:tapestry-json:5.4.1.wso2v1" level="project" />
-    <orderEntry type="library" name="Maven: net.minidev:json-smart:2.1.0" level="project" />
-    <orderEntry type="library" name="Maven: net.minidev:asm:1.0.2" level="project" />
-    <orderEntry type="library" name="Maven: asm:asm:3.3.1" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient:0.5.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_pushgateway:0.5.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_common:0.5.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_httpserver:0.5.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.wso2.extension.siddhi.map.keyvalue:siddhi-map-keyvalue:1.0.17" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.wso2.orbit.org.apache.tapestry:tapestry-json:5.4.1.wso2v1" level="project" />
   </component>
 </module>

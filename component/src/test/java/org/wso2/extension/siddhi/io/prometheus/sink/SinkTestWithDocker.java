@@ -33,7 +33,6 @@ import org.wso2.siddhi.core.exception.SiddhiAppCreationException;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.SiddhiTestHelper;
-import org.wso2.siddhi.core.util.config.InMemoryConfigManager;
 import org.wso2.siddhi.core.util.persistence.InMemoryPersistenceStore;
 
 import java.io.BufferedReader;
@@ -42,9 +41,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -53,26 +50,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Test cases for prometheus sink in server and pushgateway publish mode.
- * Prometheus server and pushgateway must be up and running for the testcases to pass.
- * Targets must be configured inside the Prometheus configuration file (prometheus.yml) as,
- * - job_name: 'server'
- * honor_labels: true
- * static_configs:
- * - targets: ['localhost:9080']
- *
- * - job_name: 'pushgateway'
- * honor_labels: true
- * static_configs:
- * - targets: ['localhost:9091']
- *
- * - job_name: 'configurationTest'
- *   honor_labels: true
- *   static_configs:
- *   - targets: ['localhost:9096']
+ * The functionality can be tested with the docker base integration test framework.
+ * The test framework initialize a docker container with required configuration before execute the test suit.
+ * To start integration tests,
+ * 1. Install and run docker
+ * 2. To run the integration tests,
+ * - navigate to the siddhi-io-prometheus/ directory and issue the following commands.
+ * mvn verify -P local-prometheus
+ * (Prometheus target configurations can be modified at the directory
+ * siddhi-io-prometheus/component/src/test/resources/prometheus/prometheus.yml)
  */
-public class PrometheusSinkTest {
+public class SinkTestWithDocker {
 
-    private static final Logger log = Logger.getLogger(PrometheusSinkTest.class);
+    private static final Logger log = Logger.getLogger(SinkTestWithDocker.class);
     private static String pushgatewayURL;
     private static String serverURL;
     private static ExecutorService executorService;
@@ -110,7 +100,8 @@ public class PrometheusSinkTest {
         eventArrived.set(false);
         createdEvents.clear();
     }
-    private void getAndValidateMetrics(String metricName) {
+
+    public void getAndValidateMetrics(String metricName) {
 
         String requestURL = prometheusServerURL + metricName;
         try {
@@ -152,10 +143,10 @@ public class PrometheusSinkTest {
     /**
      * test for Prometheus sink with keyvalue mapping.
      *
-     * @throws InterruptedException interrupted exception
+     * @throws InterruptedException
      */
     @Test(sequential = true)
-    public void prometheusSinkTest() throws InterruptedException {
+    public void prometheusSinkTest1() throws InterruptedException {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         log.info("----------------------------------------------------------------------------------");
@@ -217,7 +208,7 @@ public class PrometheusSinkTest {
      * @throws Exception Interrupted exception
      */
     @Test(sequential = true)
-    public void prometheusSinkTestServerMode() throws InterruptedException {
+    public void prometheusSinkTest2() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with server mode");
@@ -283,7 +274,7 @@ public class PrometheusSinkTest {
      * @throws Exception Interrupted exception
      */
     @Test(sequential = true)
-    public void prometheusSinkTestPushgatewayMode() throws InterruptedException {
+    public void prometheusSinkTest3() throws InterruptedException {
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with pushgateway mode");
         log.info("----------------------------------------------------------------------------------");
@@ -333,19 +324,16 @@ public class PrometheusSinkTest {
         inputEvents.add(inputEvent1);
         inputEvents.add(inputEvent2);
         Assert.assertTrue(eventArrived.get());
-        Thread.sleep(1000);
+        SiddhiTestHelper.waitForEvents(3000, 2, eventCount, 3000);
         getAndValidateMetrics("test_metrics");
-
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 2);
-        } else {
+        if (!SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
             Assert.fail("Events does not match");
         }
         siddhiAppRuntime.shutdown();
     }
 
     @Test(sequential = true)
-    public void prometheusConnectionTestMultipleSink() throws Exception {
+    public void prometheusSinkTest4() throws Exception {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Test to verify Prometheus sink with multiple sink definitions in server mode.");
@@ -403,89 +391,15 @@ public class PrometheusSinkTest {
         inputEvents.add(inputEvent1);
         inputEvents.add(inputEvent2);
         Assert.assertTrue(eventArrived.get());
-        Thread.sleep(1000);
-
+        Thread.sleep(3000);
+        SiddhiTestHelper.waitForEvents(3000, 4, eventCount, 3000);
         getAndValidateMetrics("TestStream1");
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 4);
-        } else {
+        if (!SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
             Assert.fail("Events does not match");
         }
         createdEvents.clear();
-
         getAndValidateMetrics("TestStream2");
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 4);
-        } else {
-            Assert.fail("Events does not match");
-        }
-        siddhiAppRuntime.shutdown();
-    }
-
-    @Test(sequential = true)
-    public void prometheusConfigurationTest() throws Exception {
-
-        log.info("----------------------------------------------------------------------------------");
-        log.info("Test to verify Prometheus sink with custom configuration.");
-        log.info("----------------------------------------------------------------------------------");
-
-        String serverPort = System.getenv("SERVER_CONFIG_PORT");
-        String host = System.getenv("HOST_NAME");
-        String url = "http://" + host + ":" + serverPort;
-        Map<String, String> serverConfig = new HashMap<>();
-        serverConfig.put("sink.prometheus.publishMode", "server");
-        serverConfig.put("sink.prometheus.serverURL", url);
-        serverConfig.put("sink.prometheus.groupingKey", "'name:company','product:APIM'");
-        InMemoryConfigManager configManager = new InMemoryConfigManager(serverConfig, null);
-        configManager.generateConfigReader("sink", "prometheus");
-
-        SiddhiManager siddhiManager = new SiddhiManager();
-        siddhiManager.setConfigManager(configManager);
-
-        String streamDefinition = "" +
-                "define stream InputStream (symbol String, volume int, price double);" +
-                "@sink(type='prometheus'," +
-                "metric.type='gauge'," +
-                "metric.help= 'configuration test'," +
-                "metric.name= 'metric_test'," +
-                "value.attribute= 'volume'," +
-                "@map(type = \'keyvalue\'))"
-                + "Define stream TestStream (symbol String, volume int, price double);";
-        String query = (
-                "@info(name = 'query') "
-                        + "from InputStream "
-                        + "select symbol, volume, price "
-                        + "insert into TestStream;"
-        );
-
-        StreamCallback streamCallback = new StreamCallback() {
-            @Override
-            public void receive(Event[] events) {
-                for (Event event : events) {
-                    eventCount.getAndIncrement();
-                    eventArrived.set(true);
-                }
-            }
-        };
-
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streamDefinition + query);
-        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
-        siddhiAppRuntime.addCallback("TestStream", streamCallback);
-        siddhiAppRuntime.start();
-        List<Object[]> inputEvents = new ArrayList<>();
-        Object[] inputEvent1 = new Object[]{"WSO2", 100, 78.8};
-        Object[] inputEvent2 = new Object[]{"IBM", 125, 65.32};
-        inputHandler.send(inputEvent1);
-        inputHandler.send(inputEvent2);
-        inputEvents.add(inputEvent1);
-        inputEvents.add(inputEvent2);
-        Assert.assertTrue(eventArrived.get());
-        Thread.sleep(1000);
-        getAndValidateMetrics("metric_test");
-
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 2);
-        } else {
+        if (!SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
             Assert.fail("Events does not match");
         }
         siddhiAppRuntime.shutdown();
@@ -497,7 +411,7 @@ public class PrometheusSinkTest {
      * @throws InterruptedException
      **/
     @Test(sequential = true)
-    public void prometheusSinkTestNodeFailure() throws InterruptedException, CannotRestoreSiddhiAppStateException {
+    public void prometheusSinkTest5() throws InterruptedException, CannotRestoreSiddhiAppStateException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Test to verify recovering of the Siddhi node on a failure ");
