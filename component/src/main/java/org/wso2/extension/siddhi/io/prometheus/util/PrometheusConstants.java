@@ -70,4 +70,64 @@ public class PrometheusConstants {
     public static final String PUBLISH_MODE_CONFIGURATION = "publishMode";
     public static final String GROUPING_KEY_CONFIGURATION = "groupingKey";
 
+    public static final String TARGET_URL = "target.url";
+    public static final String SCRAPE_INTERVAL = "scrape.interval";
+    public static final String SCRAPE_TIMEOUT = "scrape.timeout";
+    public static final String SCHEME = "scheme";
+    public static final String USERNAME_BASIC_AUTH = "username";
+    public static final String PASSWORD_BASIC_AUTH = "password";
+    public static final String TRUSTSTORE_FILE = "client.truststore.file";
+    public static final String TRUSTSTORE_PASSWORD = "client.truststore.password";
+    public static final String REQUEST_HEADERS = "headers";
+    public static final String METRIC_JOB = "job";
+    public static final String METRIC_INSTANCE = "instance";
+    public static final String METRIC_GROUPING_KEY = "grouping.key";
+
+    public static final String TARGET_URL_CONFIGURATION = "targetURL";
+    public static final String SCRAPE_INTERVAL_CONFIGURATION = "scrapeInterval";
+    public static final String SCRAPE_TIMEOUT_CONFIGURATION = "scrapeTimeout";
+    public static final String SCHEME_CONFIGURATION = "scheme";
+    public static final String USERNAME_BASIC_AUTH_CONFIGURATION = "username";
+    public static final String PASSWORD_BASIC_AUTH_CONFIGURATION = "password";
+    public static final String TRUSTSTORE_FILE_CONFIGURATION = "trustStoreFile";
+    public static final String TRUSTSTORE_PASSWORD_CONFIGURATION = "trustStorePassword";
+    public static final String REQUEST_HEADERS_CONFIGURATION = "headers";
+    public static final String METRIC_JOB_CONFIGURATION = "job";
+    public static final String METRIC_INSTANCE_CONFIGURATION = "instance";
+
+    public static final String HTTP_SCHEME = "http";
+    public static final String HTTPS_SCHEME = "https";
+    public static final String DEFAULT_SCRAPE_INTERVAL = "60";
+    public static final String DEFAULT_SCRAPE_TIMEOUT = "10";
+    public static final String PROMETHEUS_SOURCE = "Prometheus source";
+    public static final int DEFAULT_HTTPS_PORT = 443;
+    public static final String DEFAULT_HTTP_METHOD = "GET";
+
+    public static final int DEFAULT_HTTP_PORT = 80;
+    public static final String TRUSTSTORE_PATH_VALUE = "${carbon.home}/resources/security/client-truststore.jks";
+    public static final String TRUSTSTORE_PASSWORD_VALUE = "wso2carbon";
+    public static final String TEXT_PLAIN = "text/plain";
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+
+    public static final String HTTP_CONTENT_TYPE = "Content-Type";
+    public static final String HTTP_METHOD = "HTTP_METHOD";
+
+    public static final String SINGLE_QUOTE = "\'";
+
+    public static final String MAP_NAME = "metric_name";
+    public static final String MAP_TYPE = "metric_type";
+    public static final String MAP_HELP = "help";
+    public static final String MAP_SAMPLE_SUBTYPE = "subtype";
+    public static final String MAP_SAMPLE_VALUE = "value";
+
+    public static final String BUCKET_POSTFIX = "_bucket";
+    public static final String COUNT_POSTFIX = "_count";
+    public static final String SUM_POSTFIX = "_sum";
+    public static final String SUBTYPE_NULL = "null";
+    public static final String SUBTYPE_BUCKET = "bucket";
+    public static final String SUBTYPE_COUNT = "count";
+    public static final String SUBTYPE_SUM = "sum";
+    public static final String LAST_RETRIEVED_SAMPLES = "last.retrieved.samples";
+    public static final String LE_KEY = "le";
+    public static final String QUANTILE_KEY = "quantile";
 }

@@ -1,6 +1,7 @@
 package org.wso2.extension.siddhi.io.prometheus.source;
 
 import org.apache.log4j.Logger;
+import org.wso2.carbon.messaging.Header;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSourceUtil;
 import org.wso2.siddhi.annotation.Example;
@@ -12,7 +13,6 @@ import org.wso2.siddhi.core.stream.input.source.Source;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 import org.wso2.siddhi.core.util.config.ConfigReader;
 import org.wso2.siddhi.core.util.transport.OptionHolder;
-import org.wso2.siddhi.query.api.SiddhiApp;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -108,7 +108,6 @@ public class PrometheusSource extends Source {
     private PrometheusScraper prometheusScraper;
 
 
-
     /**
      * The initialization method for {@link Source}, will be called before other methods. It used to validate
      * all configurations and to get initial values.
@@ -126,11 +125,13 @@ public class PrometheusSource extends Source {
                      SiddhiAppContext siddhiAppContext) {
         siddhiAppName = siddhiAppContext.getName();
         streamName = sourceEventListener.getStreamDefinition().getId();
+        PrometheusSourceUtil.setStreamName(streamName);
         initPrometheusScraper(optionHolder, configReader, sourceEventListener, siddhiAppContext);
         configureMetricAnalyser(optionHolder, configReader, siddhiAppContext);
     }
 
-    private void configureMetricAnalyser(OptionHolder optionHolder, ConfigReader configReader, SiddhiAppContext siddhiAppContext) {
+    private void configureMetricAnalyser(OptionHolder optionHolder, ConfigReader configReader,
+                                         SiddhiAppContext siddhiAppContext) {
         String metricName = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_NAME, streamName);
         MetricType metricType = MetricType.assignMetricType(optionHolder.
                 validateAndGetStaticValue(PrometheusConstants.METRIC_TYPE));
@@ -152,7 +153,8 @@ public class PrometheusSource extends Source {
                         PrometheusConstants.EMPTY_STRING));
         this.scheme = optionHolder.validateAndGetStaticValue(PrometheusConstants.SCHEME, configReader
                 .readConfig(PrometheusConstants.SCHEME_CONFIGURATION, PrometheusConstants.HTTP_SCHEME));
-        if (!(scheme.equals(PrometheusConstants.HTTP_SCHEME) || scheme.equals(PrometheusConstants.HTTPS_SCHEME))) {
+        if (!(scheme.equalsIgnoreCase(PrometheusConstants.HTTP_SCHEME) || scheme.equalsIgnoreCase(
+                PrometheusConstants.HTTPS_SCHEME))) {
             throw new SiddhiAppCreationException("The field \'scheme\' contains unsupported value in " +
                     PrometheusConstants.PROMETHEUS_SOURCE + " in " + streamName);
         }
@@ -167,14 +169,18 @@ public class PrometheusSource extends Source {
                         "not matching in Prometheus source with stream " + streamName);
             }
         } catch (MalformedURLException e) {
-            throw new SiddhiAppCreationException("The Prometheus source contains an invalid value for target URL");
+            throw new SiddhiAppCreationException("The Prometheus source associated with stream " + streamName +
+                    " contains an invalid value for target URL");
         }
-        int scrapeInterval = Integer.parseInt(optionHolder.validateAndGetStaticValue(PrometheusConstants.SCRAPE_INTERVAL,
-                configReader.readConfig(PrometheusConstants.SCRAPE_INTERVAL_CONFIGURATION,
+        int scrapeInterval = Integer.parseInt(optionHolder.validateAndGetStaticValue(
+                PrometheusConstants.SCRAPE_INTERVAL, configReader.readConfig(
+                        PrometheusConstants.SCRAPE_INTERVAL_CONFIGURATION,
                         PrometheusConstants.DEFAULT_SCRAPE_INTERVAL)));
+        validateNegativeValue(scrapeInterval);
         int scrapeTimeout = Integer.parseInt(optionHolder.validateAndGetStaticValue(PrometheusConstants.SCRAPE_TIMEOUT,
                 configReader.readConfig(PrometheusConstants.SCRAPE_TIMEOUT_CONFIGURATION,
                         PrometheusConstants.DEFAULT_SCRAPE_TIMEOUT)));
+        validateNegativeValue(scrapeTimeout);
         String userName = optionHolder.validateAndGetStaticValue(PrometheusConstants.USERNAME_BASIC_AUTH,
                 configReader.readConfig(PrometheusConstants.USERNAME_BASIC_AUTH_CONFIGURATION, EMPTY_STRING));
         String password = optionHolder.validateAndGetStaticValue(PrometheusConstants.PASSWORD_BASIC_AUTH,
@@ -186,15 +192,10 @@ public class PrometheusSource extends Source {
         String headers = optionHolder.validateAndGetStaticValue(PrometheusConstants.REQUEST_HEADERS,
                 configReader.readConfig(PrometheusConstants.REQUEST_HEADERS_CONFIGURATION, EMPTY_STRING));
 
-        if (PrometheusConstants.HTTPS_SCHEME.equals(scheme) && ((clientStoreFile == null) || (clientStorePassword == null))) {
-            throw new ExceptionInInitializerError("Client trustStore file path or password are empty while " +
-                    "default scheme is 'https'. Please provide client " +
-                    "trustStore file path and password in " + streamName);
-        }
-
-        Map<String, String> headersMap = PrometheusSourceUtil.populateStringMap(headers);
+//        Map<String, String> headersMap = PrometheusSourceUtil.populateStringMap(headers);
+        List<Header> headerList = PrometheusSourceUtil.getHeaders(headers);
         this.prometheusScraper = new PrometheusScraper(targetURL, scheme, scrapeInterval, scrapeTimeout,
-                headersMap, sourceEventListener);
+                headerList, sourceEventListener);
         if ((EMPTY_STRING.equals(userName) ^
                 EMPTY_STRING.equals(password))) {
             throw new SiddhiAppCreationException("Please provide user name and password in " +
@@ -202,6 +203,23 @@ public class PrometheusSource extends Source {
                     siddhiAppContext.getName());
         } else if (!(EMPTY_STRING.equals(userName) || EMPTY_STRING.equals(password))) {
             prometheusScraper.setAuthorizationHeader(userName, password);
+        }
+
+        if (PrometheusConstants.HTTPS_SCHEME.equalsIgnoreCase(scheme) && ((clientStoreFile.equals(EMPTY_STRING)) ||
+                (clientStorePassword.equals(EMPTY_STRING)))) {
+            throw new ExceptionInInitializerError("Client trustStore file path or password are empty while " +
+                    "default scheme is 'https'. Please provide client " +
+                    "trustStore file path and password in " + streamName);
+        } else {
+            prometheusScraper.setHttpsProperties(clientStoreFile, clientStorePassword);
+        }
+
+    }
+
+    private void validateNegativeValue(int value) {
+        if (value < 0) {
+            throw new SiddhiAppCreationException("The value of fields scrape interval or scrape timeout of " +
+                    PrometheusConstants.PROMETHEUS_SOURCE + " cannot be negative in " + streamName);
         }
     }
 
@@ -287,7 +305,7 @@ public class PrometheusSource extends Source {
      */
     @Override
     public void restoreState(Map<String, Object> map) {
-        prometheusScraper.setLastValidResponse((List<String>)map.get(PrometheusConstants.LAST_RETRIEVED_SAMPLES));
+        prometheusScraper.setLastValidResponse((List<String>) map.get(PrometheusConstants.LAST_RETRIEVED_SAMPLES));
 
     }
 }

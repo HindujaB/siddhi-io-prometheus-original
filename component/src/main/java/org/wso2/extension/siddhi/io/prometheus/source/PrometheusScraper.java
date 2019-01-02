@@ -1,35 +1,51 @@
 package org.wso2.extension.siddhi.io.prometheus.source;
 
-import feign.Feign;
-import feign.Request;
-import feign.RequestInterceptor;
-import feign.RequestLine;
-import feign.RequestTemplate;
-import feign.Response;
-import feign.auth.BasicAuthRequestInterceptor;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.base64.Base64;
+import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpVersion;
 import org.apache.log4j.Logger;
+import org.wso2.carbon.messaging.Header;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
+import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSourceUtil;
 import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
+import org.wso2.transport.http.netty.common.Constants;
+import org.wso2.transport.http.netty.config.SenderConfiguration;
+import org.wso2.transport.http.netty.contract.HttpClientConnector;
+import org.wso2.transport.http.netty.contract.HttpResponseFuture;
+import org.wso2.transport.http.netty.contract.HttpWsConnectorFactory;
+import org.wso2.transport.http.netty.contractimpl.DefaultHttpWsConnectorFactory;
+import org.wso2.transport.http.netty.message.HTTPCarbonMessage;
+import org.wso2.transport.http.netty.message.HttpMessageDataStreamer;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
+
+/**
+ *
+ */
 public class PrometheusScraper implements Runnable {
     private static final Logger log = Logger.getLogger(PrometheusScraper.class);
     private String targetURL;
     private int scrapeInterval;
     private int scrapeTimeout;
     private String scheme;
-    private Map<String, String> headers;
-    private String userName = PrometheusConstants.EMPTY_STRING;
-    private String password = PrometheusConstants.EMPTY_STRING;
+    private List<Header> headers;
+    private String userName = EMPTY_STRING;
+    private String password = EMPTY_STRING;
     private String clientStoreFile;
     private String clientStorePassword;
     private List<String> lastValidSamples;
@@ -39,7 +55,7 @@ public class PrometheusScraper implements Runnable {
 
 
     PrometheusScraper(String targetURL, String scheme, int scrapeInterval, int scrapeTimeout,
-                      Map<String, String> headers, SourceEventListener sourceEventListener) {
+                      List<Header> headers, SourceEventListener sourceEventListener) {
         this.targetURL = targetURL;
         this.scheme = scheme;
         this.scrapeInterval = scrapeInterval;
@@ -56,6 +72,7 @@ public class PrometheusScraper implements Runnable {
         metricAnalyser.metricGroupingKey = metricGroupingKey;
     }
 
+
     void setAuthorizationHeader(String userName, String password) {
         this.userName = userName;
         this.password = password;
@@ -65,59 +82,109 @@ public class PrometheusScraper implements Runnable {
         if (scheme.equalsIgnoreCase(PrometheusConstants.HTTPS_SCHEME)) {
             this.clientStoreFile = clientStoreFile;
             this.clientStorePassword = clientStorePassword;
-        } else {
-            String errorMessage = "The fields client truststore file and password in Prometheus source do not " +
-                    "support for scheme http.";
-            throw new PrometheusSourceException(errorMessage);
         }
     }
 
-    static class HeaderInterceptor implements RequestInterceptor {
-        private Map<String, String> headers;
-
-        @Override
-        public void apply(RequestTemplate template) {
-            if (this.headers != null) {
-                for (Map.Entry<String, String> entry : headers.entrySet()) {
-                    template.header(entry.getKey(), entry.getValue());
-                }
-            }
-        }
-    }
-
-    interface PrometheusHttpInterface {
-        @RequestLine("GET /")
-        Response getMetrics();
+    private String encode(String userNamePassword) {
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(userNamePassword.getBytes(StandardCharsets.UTF_8));
+        ByteBuf encodedByteBuf = Base64.encode(byteBuf);
+        return encodedByteBuf.toString(StandardCharsets.UTF_8);
     }
 
     private List<String> getMetricSamples() throws IOException {
+        Map<String, String> urlProperties = PrometheusSourceUtil.getURLProperties(targetURL, scheme);
+        SenderConfiguration senderConfiguration = PrometheusSourceUtil.getSenderConfigurations(urlProperties,
+                clientStoreFile, clientStorePassword);
+        if (scrapeTimeout != -1) {
+            senderConfiguration.setSocketIdleTimeout(scrapeTimeout * 1000);
+        }
+        if (!(EMPTY_STRING.equals(userName) || EMPTY_STRING.equals(password))) {
+            String basicAuthHeader = "Basic " + encode(userName + ":" + password);
+            headers.add(new Header(PrometheusConstants.AUTHORIZATION_HEADER, basicAuthHeader));
+        }
+        HttpWsConnectorFactory httpConnectorFactory = new DefaultHttpWsConnectorFactory();
+        HttpClientConnector httpClientConnector = httpConnectorFactory.createHttpClientConnector(new HashMap<>(),
+                senderConfiguration);
+        List<String> metricResponse = sendRequest(httpClientConnector, urlProperties, headers);
 
-        HeaderInterceptor headerInterceptor = new HeaderInterceptor();
-        headerInterceptor.headers = headers;
-        PrometheusHttpInterface prometheusInterface = Feign.builder()
-                .requestInterceptor(headerInterceptor)
-                .requestInterceptor(new BasicAuthRequestInterceptor(userName, password))
-                .options(new Request.Options(scrapeTimeout, scrapeTimeout))
-                .target(PrometheusHttpInterface.class, targetURL);
-        List<String> metricSamples;
-        Response metricResponse = prometheusInterface.getMetrics();
         if (metricResponse == null) {
             String errorMessage = "Error occurred while retrieving metrics. Error : Response is null.";
             log.error(errorMessage);
             throw new SiddhiAppRuntimeException(errorMessage);
         }
-        if (metricResponse.status() == 200) {
-            InputStream inputStream = metricResponse.body().asInputStream();
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-                metricSamples = br.lines().collect(Collectors.toList());
+        return metricResponse;
+    }
+
+    private static List<String> sendRequest(HttpClientConnector clientConnector, Map<String, String> urlProperties,
+                                            List<Header> headerList) {
+        List<String> responsePayload;
+
+        HttpMethod httpReqMethod = new HttpMethod(PrometheusConstants.DEFAULT_HTTP_METHOD);
+        HTTPCarbonMessage msg = new HTTPCarbonMessage(new DefaultHttpRequest(HttpVersion.HTTP_1_1, httpReqMethod,
+                EMPTY_STRING));
+        msg = generateCarbonMessage(headerList, urlProperties, msg);
+        msg.completeMessage();
+        HttpResponseFuture httpResponseFuture = clientConnector.send(msg);
+
+        PrometheusHTTPListener httpListener =
+                new PrometheusHTTPListener();
+        httpResponseFuture.setHttpConnectorListener(httpListener);
+
+        HTTPCarbonMessage response = httpListener.getHttpResponseMessage();
+        int statusCode = response.getNettyHttpResponse().status().code();
+        HttpMessageDataStreamer streamer = new HttpMessageDataStreamer(response);
+        InputStreamReader reader = new InputStreamReader(streamer.getInputStream(), Charset.forName("UTF-8"));
+        BufferedReader bufferedReader = new BufferedReader(reader);
+        if (statusCode == 200) {
+            responsePayload = bufferedReader.lines().collect(Collectors.toList());
+            try {
+                streamer.getInputStream().close();
+            } catch (IOException e) {
+                log.error("Error while closing the stream " + e);
             }
         } else {
             String errorMessage = "Error occurred while retrieving metrics. HTTP error code: " +
-                    metricResponse.status();
+                    statusCode;
             log.error(errorMessage);
             throw new SiddhiAppRuntimeException(errorMessage);
         }
-        return metricSamples;
+        return responsePayload;
+    }
+
+    private static HTTPCarbonMessage generateCarbonMessage(List<Header> headers, Map<String, String> urlProperties,
+                                                           HTTPCarbonMessage cMessage) {
+        /*
+         * set carbon message properties which is to be used in carbon transport.
+         */
+        // Set protocol type http or https
+        cMessage.setProperty(Constants.PROTOCOL, urlProperties.get(Constants.PROTOCOL));
+        // Set uri
+        cMessage.setProperty(Constants.TO, urlProperties.get(Constants.TO));
+        // set Host
+        cMessage.setProperty(Constants.HTTP_HOST, urlProperties.get(Constants.HTTP_HOST));
+        //set port
+        cMessage.setProperty(Constants.HTTP_PORT, Integer.valueOf(urlProperties.get(Constants.HTTP_PORT)));
+        // Set method
+        cMessage.setProperty(Constants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
+        //Set request URL
+        cMessage.setProperty(Constants.REQUEST_URL, urlProperties.get(Constants.REQUEST_URL));
+        HttpHeaders httpHeaders = cMessage.getHeaders();
+        httpHeaders.set(Constants.HTTP_HOST, cMessage.getProperty(Constants.HTTP_HOST));
+        /*
+         *set request headers.
+         */
+        // Set user given Headers
+        if (headers != null) {
+            for (Header header : headers) {
+                httpHeaders.set(header.getName(), header.getValue());
+            }
+        }
+        // Set content type if content type is not included in headers
+        httpHeaders.set(PrometheusConstants.HTTP_CONTENT_TYPE, PrometheusConstants.TEXT_PLAIN);
+
+        //set method-type header
+        httpHeaders.set(PrometheusConstants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
+        return cMessage;
     }
 
 
