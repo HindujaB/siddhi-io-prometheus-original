@@ -25,7 +25,7 @@ import io.prometheus.client.exporter.PushGateway;
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.sink.util.PrometheusMetricBuilder;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
-import org.wso2.extension.siddhi.io.prometheus.util.PrometheusUtil;
+import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSinkUtil;
 import org.wso2.siddhi.annotation.Example;
 import org.wso2.siddhi.annotation.Extension;
 import org.wso2.siddhi.annotation.Parameter;
@@ -296,7 +296,6 @@ public class PrometheusSink extends Sink {
     private PushGateway pushGateway;
     private CollectorRegistry collectorRegistry;
     private String registeredMetrics;
-    private ConfigReader configReader;
 
     @Override
     public Class[] getSupportedInputEventClasses() {
@@ -326,16 +325,15 @@ public class PrometheusSink extends Sink {
             }
         }
 
-        this.configReader = configReader;
         this.jobName = optionHolder.validateAndGetStaticValue(PrometheusConstants.JOB_NAME,
-                PrometheusUtil.jobName(configReader));
+                PrometheusSinkUtil.jobName(configReader));
         this.pushURL = optionHolder.validateAndGetStaticValue(PrometheusConstants.PUSH_URL,
-                PrometheusUtil.pushURL(configReader));
+                PrometheusSinkUtil.pushURL(configReader));
         this.serverURL = optionHolder.validateAndGetStaticValue(PrometheusConstants.SERVER_URL,
-                PrometheusUtil.serverURL(configReader));
+                PrometheusSinkUtil.serverURL(configReader));
         this.publishMode = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_PUBLISH_MODE,
-                PrometheusUtil.publishMode(configReader));
-        this.metricType = PrometheusUtil.assignMetricType(optionHolder.validateAndGetStaticValue(METRIC_TYPE));
+                PrometheusSinkUtil.publishMode(configReader));
+        this.metricType = PrometheusSinkUtil.assignMetricType(optionHolder.validateAndGetStaticValue(METRIC_TYPE));
         this.metricHelp = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_HELP,
                 HELP_STRING + metricType + SPACE_STRING + metricName).trim();
         this.buckets = optionHolder.validateAndGetStaticValue(PrometheusConstants.BUCKET_DEFINITION, EMPTY_STRING);
@@ -346,8 +344,8 @@ public class PrometheusSink extends Sink {
                 PrometheusConstants.METRIC_NAME, outputstreamDefinition.getId()).trim();
         this.pushOperation = optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.PUSH_DEFINITION, PrometheusConstants.PUSH_ADD_OPERATION).trim();
-        this.groupingKey = PrometheusUtil.populateGroupingKey(optionHolder.validateAndGetStaticValue(
-                PrometheusConstants.GROUPING_KEY_DEFINITION, PrometheusUtil.groupinKey(configReader)).trim());
+        this.groupingKey = PrometheusSinkUtil.populateGroupingKey(optionHolder.validateAndGetStaticValue(
+                PrometheusConstants.GROUPING_KEY_DEFINITION, PrometheusSinkUtil.groupinKey(configReader)).trim());
         this.valueAttribute = optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.VALUE_ATTRIBUTE, VALUE_STRING).trim();
         try {
@@ -401,9 +399,9 @@ public class PrometheusSink extends Sink {
             }
         }
         prometheusMetricBuilder = new PrometheusMetricBuilder(metricName, metricHelp, metricType, attributes);
-        prometheusMetricBuilder.setHistogramBuckets(PrometheusUtil.convertToDoubleArray(buckets.trim()));
-        double[] quantileValues = PrometheusUtil.convertToDoubleArray(quantiles.trim());
-        if (PrometheusUtil.validateQuantiles(quantileValues)) {
+        prometheusMetricBuilder.setHistogramBuckets(PrometheusSinkUtil.convertToDoubleArray(buckets.trim()));
+        double[] quantileValues = PrometheusSinkUtil.convertToDoubleArray(quantiles.trim());
+        if (PrometheusSinkUtil.validateQuantiles(quantileValues)) {
             prometheusMetricBuilder.setQuantiles(quantileValues, quantileError);
         }
         switch (publishMode) {
@@ -423,7 +421,7 @@ public class PrometheusSink extends Sink {
         Map<String, Object> attributeMap = (Map<String, Object>) payload;
         String[] labels;
         double value = parseDouble(attributeMap.get(valueAttribute).toString());
-        labels = PrometheusUtil.populateLabelArray(attributeMap, valueAttribute);
+        labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
         prometheusMetricBuilder.insertValues(value, labels);
         CollectorRegistry registry = prometheusMetricBuilder.getRegistry();
 

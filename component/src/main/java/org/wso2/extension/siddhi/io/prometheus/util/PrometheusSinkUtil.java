@@ -34,10 +34,10 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.V
 
 
 /**
- * {@code PrometheusUtil } responsible for Prometheus util functions.
+ * {@code PrometheusSinkUtil } responsible for Prometheus util functions.
  */
 
-public class PrometheusUtil {
+public class PrometheusSinkUtil {
 
 
     /**
