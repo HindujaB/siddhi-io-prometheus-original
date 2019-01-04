@@ -30,6 +30,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
@@ -40,8 +42,8 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 public class PrometheusScraper implements Runnable {
     private static final Logger log = Logger.getLogger(PrometheusScraper.class);
     private String targetURL;
-    private int scrapeInterval;
-    private int scrapeTimeout;
+    private double scrapeInterval;
+    private double scrapeTimeout;
     private String scheme;
     private List<Header> headers;
     private String userName = EMPTY_STRING;
@@ -51,10 +53,10 @@ public class PrometheusScraper implements Runnable {
     private List<String> lastValidSamples;
     private PrometheusMetricAnalyser metricAnalyser;
     private boolean isPaused = false;
+    private List<String> metricSamples;
     private SourceEventListener sourceEventListener;
 
-
-    PrometheusScraper(String targetURL, String scheme, int scrapeInterval, int scrapeTimeout,
+    PrometheusScraper(String targetURL, String scheme, double scrapeInterval, double scrapeTimeout,
                       List<Header> headers, SourceEventListener sourceEventListener) {
         this.targetURL = targetURL;
         this.scheme = scheme;
@@ -91,12 +93,12 @@ public class PrometheusScraper implements Runnable {
         return encodedByteBuf.toString(StandardCharsets.UTF_8);
     }
 
-    private List<String> getMetricSamples() throws IOException {
+    private void retrieveMetricSamples() throws IOException {
         Map<String, String> urlProperties = PrometheusSourceUtil.getURLProperties(targetURL, scheme);
         SenderConfiguration senderConfiguration = PrometheusSourceUtil.getSenderConfigurations(urlProperties,
                 clientStoreFile, clientStorePassword);
         if (scrapeTimeout != -1) {
-            senderConfiguration.setSocketIdleTimeout(scrapeTimeout * 1000);
+            senderConfiguration.setSocketIdleTimeout((int) (scrapeTimeout * 1000));
         }
         if (!(EMPTY_STRING.equals(userName) || EMPTY_STRING.equals(password))) {
             String basicAuthHeader = "Basic " + encode(userName + ":" + password);
@@ -105,71 +107,82 @@ public class PrometheusScraper implements Runnable {
         HttpWsConnectorFactory httpConnectorFactory = new DefaultHttpWsConnectorFactory();
         HttpClientConnector httpClientConnector = httpConnectorFactory.createHttpClientConnector(new HashMap<>(),
                 senderConfiguration);
-        List<String> metricResponse = sendRequest(httpClientConnector, urlProperties, headers);
+        metricSamples = sendRequest(httpClientConnector, urlProperties, headers);
 
-        if (metricResponse == null) {
-            String errorMessage = "Error occurred while retrieving metrics. Error : Response is null.";
+        String errorMessage = PrometheusConstants.EMPTY_STRING;
+        if (metricSamples == null) {
+            errorMessage = "Error occurred while retrieving metrics. Error : Response is null.";
+        } else if (metricSamples.isEmpty()) {
+            errorMessage = "The target at" + targetURL + "returns an empty response";
+        }
+        if (!errorMessage.equals(PrometheusConstants.EMPTY_STRING)) {
             log.error(errorMessage);
             throw new SiddhiAppRuntimeException(errorMessage);
+        } else {
+            metricAnalyser.analyseMetrics(metricSamples, targetURL);
+            this.lastValidSamples = metricAnalyser.getLastValidSamples();
         }
-        return metricResponse;
     }
 
     private static List<String> sendRequest(HttpClientConnector clientConnector, Map<String, String> urlProperties,
                                             List<Header> headerList) {
         List<String> responsePayload;
+        CountDownLatch latch = new CountDownLatch(1);
 
         HttpMethod httpReqMethod = new HttpMethod(PrometheusConstants.DEFAULT_HTTP_METHOD);
-        HTTPCarbonMessage msg = new HTTPCarbonMessage(new DefaultHttpRequest(HttpVersion.HTTP_1_1, httpReqMethod,
-                EMPTY_STRING));
-        msg = generateCarbonMessage(headerList, urlProperties, msg);
-        msg.completeMessage();
-        HttpResponseFuture httpResponseFuture = clientConnector.send(msg);
+        HTTPCarbonMessage carbonMessage = new HTTPCarbonMessage(new DefaultHttpRequest(HttpVersion.HTTP_1_1,
+                httpReqMethod, EMPTY_STRING));
+        carbonMessage = generateCarbonMessage(headerList, urlProperties, carbonMessage);
+        carbonMessage.completeMessage();
+        HttpResponseFuture httpResponseFuture = clientConnector.send(carbonMessage);
 
-        PrometheusHTTPListener httpListener =
-                new PrometheusHTTPListener();
+        PrometheusHTTPListener httpListener = new PrometheusHTTPListener(latch);
         httpResponseFuture.setHttpConnectorListener(httpListener);
+        try {
+            latch.await(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            log.debug("Thread waiting time-out issue: " + e);
+        }
 
         HTTPCarbonMessage response = httpListener.getHttpResponseMessage();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
+                new HttpMessageDataStreamer(response).getInputStream(), Charset.defaultCharset()));
         int statusCode = response.getNettyHttpResponse().status().code();
-        HttpMessageDataStreamer streamer = new HttpMessageDataStreamer(response);
-        InputStreamReader reader = new InputStreamReader(streamer.getInputStream(), Charset.forName("UTF-8"));
-        BufferedReader bufferedReader = new BufferedReader(reader);
         if (statusCode == 200) {
             responsePayload = bufferedReader.lines().collect(Collectors.toList());
-            try {
-                streamer.getInputStream().close();
-            } catch (IOException e) {
-                log.error("Error while closing the stream " + e);
-            }
+//            try {
+//                streamer.getInputStream().close();
+//            } catch (IOException e) {
+//                log.error("Error while closing the stream " + e);
+//            }
         } else {
             String errorMessage = "Error occurred while retrieving metrics. HTTP error code: " +
                     statusCode;
-            log.error(errorMessage);
+            log.error(errorMessage + " " + response.getNettyHttpResponse().status().toString());
             throw new SiddhiAppRuntimeException(errorMessage);
         }
         return responsePayload;
     }
 
     private static HTTPCarbonMessage generateCarbonMessage(List<Header> headers, Map<String, String> urlProperties,
-                                                           HTTPCarbonMessage cMessage) {
+                                                           HTTPCarbonMessage carbonMessage) {
         /*
          * set carbon message properties which is to be used in carbon transport.
          */
         // Set protocol type http or https
-        cMessage.setProperty(Constants.PROTOCOL, urlProperties.get(Constants.PROTOCOL));
+        carbonMessage.setProperty(Constants.PROTOCOL, urlProperties.get(Constants.PROTOCOL));
         // Set uri
-        cMessage.setProperty(Constants.TO, urlProperties.get(Constants.TO));
+        carbonMessage.setProperty(Constants.TO, urlProperties.get(Constants.TO));
         // set Host
-        cMessage.setProperty(Constants.HTTP_HOST, urlProperties.get(Constants.HTTP_HOST));
+        carbonMessage.setProperty(Constants.HTTP_HOST, urlProperties.get(Constants.HTTP_HOST));
         //set port
-        cMessage.setProperty(Constants.HTTP_PORT, Integer.valueOf(urlProperties.get(Constants.HTTP_PORT)));
+        carbonMessage.setProperty(Constants.HTTP_PORT, Integer.valueOf(urlProperties.get(Constants.HTTP_PORT)));
         // Set method
-        cMessage.setProperty(Constants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
+        carbonMessage.setProperty(Constants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
         //Set request URL
-        cMessage.setProperty(Constants.REQUEST_URL, urlProperties.get(Constants.REQUEST_URL));
-        HttpHeaders httpHeaders = cMessage.getHeaders();
-        httpHeaders.set(Constants.HTTP_HOST, cMessage.getProperty(Constants.HTTP_HOST));
+        carbonMessage.setProperty(Constants.REQUEST_URL, urlProperties.get(Constants.REQUEST_URL));
+        HttpHeaders httpHeaders = carbonMessage.getHeaders();
+        httpHeaders.set(Constants.HTTP_HOST, carbonMessage.getProperty(Constants.HTTP_HOST));
         /*
          *set request headers.
          */
@@ -184,21 +197,14 @@ public class PrometheusScraper implements Runnable {
 
         //set method-type header
         httpHeaders.set(PrometheusConstants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
-        return cMessage;
+        return carbonMessage;
     }
-
 
     @Override
     public void run() {
         if (!isPaused) {
             try {
-                List<String> metricSamples = getMetricSamples();
-                if (metricSamples.isEmpty()) {
-                    throw new PrometheusSourceException("The target at" + targetURL + "returns an empty response");
-                } else {
-                    metricAnalyser.analyseMetrics(metricSamples);
-                    this.lastValidSamples = metricAnalyser.getLastValidSamples();
-                }
+                retrieveMetricSamples();
                 try {
                     Thread.sleep((long) scrapeInterval * 1000);
                 } catch (InterruptedException e) {
@@ -214,7 +220,6 @@ public class PrometheusScraper implements Runnable {
         isPaused = true;
     }
 
-
     void resume() {
         isPaused = false;
     }
@@ -227,5 +232,8 @@ public class PrometheusScraper implements Runnable {
         this.lastValidSamples = lastValidResponse;
     }
 
-
+    void clearPrometheusScraper() {
+        metricSamples.clear();
+        lastValidSamples.clear();
+    }
 }

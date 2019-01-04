@@ -53,7 +53,7 @@ public class ValidationTestcase {
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = "The field \'scheme\' contains unsupported value in " +
-                    PrometheusConstants.PROMETHEUS_SOURCE + " in (.*)")
+                    "(.*) of " + PrometheusConstants.PROMETHEUS_SOURCE)
     public void prometheusValidationTest1() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
 
@@ -80,7 +80,7 @@ public class ValidationTestcase {
     }
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
-            expectedExceptionsMessageRegExp = "target URL field found empty but it is a Mandatory field of " +
+            expectedExceptionsMessageRegExp = "The target URL field found empty but it is a Mandatory field of " +
                     "" + PrometheusConstants.PROMETHEUS_SOURCE + " in (.*)")
     public void prometheusValidationTest2() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
@@ -137,7 +137,7 @@ public class ValidationTestcase {
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = "Please provide user name and password in " +
-                    PrometheusConstants.PROMETHEUS_SOURCE + " with the stream ().* in Siddhi app (.*)")
+                    PrometheusConstants.PROMETHEUS_SOURCE + " associated with the stream ().* in Siddhi app (.*)")
     public void prometheusValidationTest4() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
 
@@ -167,7 +167,8 @@ public class ValidationTestcase {
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = "Client trustStore file path or password are empty while " +
-                    "default scheme is 'https'. Please provide client trustStore file path and password in (.*)")
+                    "default scheme is 'https'. Please provide client trustStore file path and password in (.*)" +
+                    " of (.*)")
     public void prometheusValidationTest5() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
 
@@ -227,7 +228,7 @@ public class ValidationTestcase {
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = "The provided scheme and the scheme of target URL are " +
-                    "not matching in Prometheus source with stream (.*)")
+                    "not matching in Prometheus source associated with stream (.*)")
     public void prometheusValidationTest7() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
 
