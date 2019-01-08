@@ -38,6 +38,7 @@ import org.wso2.siddhi.core.stream.output.sink.Sink;
 import org.wso2.siddhi.core.util.config.ConfigReader;
 import org.wso2.siddhi.core.util.transport.DynamicOptions;
 import org.wso2.siddhi.core.util.transport.OptionHolder;
+import org.wso2.siddhi.core.util.transport.TemplateBuilder;
 import org.wso2.siddhi.query.api.annotation.Annotation;
 import org.wso2.siddhi.query.api.definition.Attribute;
 import org.wso2.siddhi.query.api.definition.StreamDefinition;
@@ -299,7 +300,7 @@ public class PrometheusSink extends Sink {
 
     @Override
     public Class[] getSupportedInputEventClasses() {
-        return new Class[]{Map.class};
+        return new Class[]{Map.class, Map[].class};
     }
 
     @Override
@@ -418,21 +419,25 @@ public class PrometheusSink extends Sink {
 
     @Override
     public void publish(Object payload, DynamicOptions dynamicOptions) throws ConnectionUnavailableException {
-        Map<String, Object> attributeMap = (Map<String, Object>) payload;
-        String[] labels;
-        double value = parseDouble(attributeMap.get(valueAttribute).toString());
-        labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
-        prometheusMetricBuilder.insertValues(value, labels);
-        CollectorRegistry registry = prometheusMetricBuilder.getRegistry();
+        if(payload instanceof Map) {
+            Map<String, Object> attributeMap = (Map<String, Object>) payload;
+            String[] labels;
+            double value = parseDouble(attributeMap.get(valueAttribute).toString());
+            labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
+            prometheusMetricBuilder.insertValues(value, labels);
+        } else if(payload instanceof Map[]) {
+            Map[] mapArray = (Map[]) payload;
+            analyseMapArray(mapArray, metricType);
 
+        }
         if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
             try {
                 switch (pushOperation) {
                     case PrometheusConstants.PUSH_OPERATION:
-                        pushGateway.push(registry, jobName, groupingKey);
+                        pushGateway.push(collectorRegistry, jobName, groupingKey);
                         break;
                     case PrometheusConstants.PUSH_ADD_OPERATION:
-                        pushGateway.pushAdd(registry, jobName, groupingKey);
+                        pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
                         break;
                     default:
                         //default will never be executed
@@ -446,7 +451,6 @@ public class PrometheusSink extends Sink {
     @Override
     public void connect() throws ConnectionUnavailableException {
         try {
-            prometheusMetricBuilder.registerMetric(valueAttribute);
             URL target;
             switch (publishMode) {
                 case PrometheusConstants.SERVER_PUBLISH_MODE:
@@ -458,7 +462,7 @@ public class PrometheusSink extends Sink {
                     target = new URL(pushURL);
                     pushGateway = new PushGateway(target);
                     try {
-                        pushGateway.pushAdd(prometheusMetricBuilder.getRegistry(), jobName, groupingKey);
+                        pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
                         log.info(metricName + " has successfully connected to pushGateway at " + pushURL);
                     } catch (IOException e) {
                         if (e.getMessage().equalsIgnoreCase("Connection refused (Connection refused)")) {
@@ -473,6 +477,7 @@ public class PrometheusSink extends Sink {
         } catch (MalformedURLException e) {
             throw new ConnectionUnavailableException("Error in URL " + e);
         }
+        prometheusMetricBuilder.registerMetric(valueAttribute);
     }
 
     private void initiateServer(String host, int port) {
@@ -528,6 +533,90 @@ public class PrometheusSink extends Sink {
             }
         }
         return "";
+    }
+    private void analyseMapArray(Map[] mapArray, Collector.Type metricType) {
+        switch (metricType) {
+            case COUNTER:
+            case GAUGE: {
+                for(Map eventMap : mapArray) {
+                    eventMap.remove(PrometheusConstants.MAP_NAME);
+                    eventMap.remove(PrometheusConstants.MAP_TYPE);
+                    eventMap.remove(PrometheusConstants.MAP_HELP);
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+                    double value = parseDouble(eventMap.get(valueAttribute).toString());
+//                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+                    String[] labels = PrometheusSinkUtil.populateLabelArray(eventMap, valueAttribute);
+                    prometheusMetricBuilder.insertValues(value, labels);
+                }
+                break;
+            }
+            case HISTOGRAM: {
+                int count = 0;
+                int sum = 0;
+                String[] labels = new String[0];
+                for(Map eventMap : mapArray) {
+                    eventMap.remove(PrometheusConstants.MAP_NAME);
+                    eventMap.remove(PrometheusConstants.MAP_TYPE);
+                    eventMap.remove(PrometheusConstants.MAP_HELP);
+                    switch (eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString()) {
+                        case PrometheusConstants.SUBTYPE_BUCKET:{
+
+                        }
+                        case PrometheusConstants.SUBTYPE_COUNT: {
+                            count = Integer.parseInt(eventMap.get(valueAttribute).toString());
+                        }
+                        case PrometheusConstants.SUBTYPE_SUM: {
+                            sum = Integer.parseInt(eventMap.get(valueAttribute).toString());
+                        }
+                        default: {
+                        }
+                    }
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+                    labels = PrometheusSinkUtil.populateLabelArray(eventMap, valueAttribute);
+                }
+                prometheusMetricBuilder.insertValues(sum, labels);
+                for(int i = 0; i < count; i++) {
+                    prometheusMetricBuilder.insertValues(0, labels);
+                }
+            }
+            case SUMMARY: {
+                int count = 0;
+                int sum = 0;
+                String[] labels = new String[0];
+                for(Map eventMap : mapArray) {
+                    eventMap.remove(PrometheusConstants.MAP_NAME);
+                    eventMap.remove(PrometheusConstants.MAP_TYPE);
+                    eventMap.remove(PrometheusConstants.MAP_HELP);
+                    switch (eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString()) {
+                        case PrometheusConstants.SUBTYPE_NULL:{
+
+                        }
+                        case PrometheusConstants.SUBTYPE_COUNT: {
+                            count = Integer.parseInt(eventMap.get(valueAttribute).toString());
+                        }
+                        case PrometheusConstants.SUBTYPE_SUM: {
+                            sum = Integer.parseInt(eventMap.get(valueAttribute).toString());
+                        }
+                        default: {
+                        }
+                    }
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+                    labels = PrometheusSinkUtil.populateLabelArray(eventMap, valueAttribute);
+                }
+                prometheusMetricBuilder.insertValues(sum, labels);
+                for(int i = 0; i < count; i++) {
+                    prometheusMetricBuilder.insertValues(0, labels);
+                }
+            }
+            default: {
+                //default will never be executed
+            }
+        }
+
+
+
     }
 }
 

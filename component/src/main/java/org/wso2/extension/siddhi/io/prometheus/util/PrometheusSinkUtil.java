@@ -212,4 +212,6 @@ public class PrometheusSinkUtil {
         return sinkConfigReader.readConfig(PrometheusConstants.GROUPING_KEY_CONFIGURATION,
                 PrometheusConstants.EMPTY_STRING);
     }
+
+
 }

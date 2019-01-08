@@ -1,9 +1,14 @@
 package org.wso2.extension.siddhi.io.prometheus.source;
 
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.Maps;
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -35,7 +40,7 @@ class PrometheusMetricAnalyser {
 
     void analyseMetrics(List<String> metricSamples, String targetURL) {
 
-        String errorMessage = "Metric cannot be found inside the http response from " + targetURL;
+        String errorMessage = "Metric cannot be found inside the http response from " + targetURL + ".";
 
         int index = -1;
         for (int i = 0; i < metricSamples.size(); i++) {
@@ -107,6 +112,9 @@ class PrometheusMetricAnalyser {
     }
 
     private void generateMaps(List<String> retrievedMetrics) {
+        List<Map<String,Object>> mapList = new ArrayList<>();
+
+        Map<String, String> labelValues = setIdealSample(retrievedMetrics.get(0));
 
         for (String sampleSingleLine : retrievedMetrics) {
             Map<String, Object> metricMap = new LinkedHashMap<>();
@@ -131,7 +139,6 @@ class PrometheusMetricAnalyser {
                 metricMap.put(PrometheusConstants.MAP_SAMPLE_SUBTYPE, PrometheusConstants.SUBTYPE_SUM);
                 addLeAndQuantileKeys(labelValueMap);
             }
-
             labelValueMap.remove(PrometheusConstants.METRIC_JOB);
             labelValueMap.remove(PrometheusConstants.METRIC_INSTANCE);
             if (!metricGroupingKey.isEmpty()) {
@@ -139,13 +146,45 @@ class PrometheusMetricAnalyser {
                     labelValueMap.remove(entry.getKey());
                 }
             }
+            MapDifference<String, String> mapDifference = Maps.difference(labelValues, labelValueMap);
+            Map<String, MapDifference.ValueDifference<String>> valueDifferenceMap = mapDifference
+                    .entriesDiffering();
+            if (valueDifferenceMap.size() != 0) {
+                if(valueDifferenceMap.containsKey(PrometheusConstants.QUANTILE_KEY) ||
+                        valueDifferenceMap.containsKey(PrometheusConstants.LE_KEY)){
+                    valueDifferenceMap.remove(PrometheusConstants.QUANTILE_KEY);
+                    valueDifferenceMap.remove(PrometheusConstants.LE_KEY);
+                }
+            }
+            if (!valueDifferenceMap.isEmpty()) {
+                handleEvent(mapList);
+                mapList.clear();
+//                mapList.add(generateMap(metricLabels, metricValue, count, sum, quantiles, buckets));
+                labelValues = setIdealSample(sampleSingleLine);
+            }
             for (Map.Entry<String, String> entry : labelValueMap.entrySet()) {
                 metricMap.put(entry.getKey(), entry.getValue());
             }
             metricMap.put(PrometheusConstants.MAP_SAMPLE_VALUE, value);
-
-            handleEvent(metricMap);
+            mapList.add(metricMap);
+            if (retrievedMetrics.indexOf(sampleSingleLine) == retrievedMetrics.size() -1) {
+                handleEvent(mapList);
+            }
         }
+    }
+
+    private Map<String, String> setIdealSample(String sample) {
+        Map<String, String> idealSample = filterMetric(sample);
+        idealSample.remove("job");
+        idealSample.remove("instance");
+        if (metricGroupingKey != null) {
+            for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
+                idealSample.remove(entry.getKey());
+            }
+        }
+        idealSample.remove("quantile");
+        idealSample.remove("le");
+        return idealSample;
     }
 
     private void addLeAndQuantileKeys(Map<String, String> labelValueMap) {
@@ -161,8 +200,8 @@ class PrometheusMetricAnalyser {
         }
     }
 
-    private void handleEvent(Map<String, Object> metricMap) {
-        sourceEventListener.onEvent(metricMap, null);
+    private void handleEvent(List<Map<String, Object>> eventMapList) {
+        sourceEventListener.onEvent(eventMapList.toArray(), null);
     }
 
 
@@ -189,5 +228,16 @@ class PrometheusMetricAnalyser {
 
     List<String> getLastValidSamples() {
         return this.lastValidSample;
+    }
+
+    private static byte[] toByteArray(Object object) throws IOException {
+        byte[] bytes;
+        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteStream)) {
+            objectOutputStream.writeObject(object);
+            objectOutputStream.flush();
+            bytes = byteStream.toByteArray();
+        }
+        return bytes;
     }
 }

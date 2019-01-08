@@ -19,11 +19,15 @@ import org.wso2.siddhi.core.util.transport.OptionHolder;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 
@@ -80,13 +84,14 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 @Extension(
         name = "prometheus",
         namespace = "source",
-        description = "The source consumes events as exported Prometheus metrics from the specified url through " +
-                "http requests. According to the source configuration, it analyses metrics from the text response " +
-                "and send them as Siddhi events with key-value mapping. Prometheus source supports HTTP and HTTPS " +
-                "schemes for scraping metrics through http requests. The user can retrieve metrics of types counter," +
-                " gauge, histogram and summary. The required Prometheus metric can be specified inside the source " +
-                "configuration using the metric name, job name, instance, grouping key and labels. " +
-                "Since the source supports key-value mapping for histogram and summary metric types, It is advised " +
+        description = "The source consumes events as exported Prometheus metrics from the specified url through \n" +
+                "http requests. According to the source configuration, it analyses metrics from the text response \n" +
+                "and send them as Siddhi events with key-value mapping. Prometheus source supports HTTP and HTTPS \n" +
+                "schemes for scraping metrics through http requests. The user can retrieve metrics of types \n" +
+                "counter, gauge, histogram and summary. The required Prometheus metric can be specified \n" +
+                "inside the source configuration using the metric name, job name, instance and grouping keys.\n" +
+                " Since the source supports key-value mapping for histogram and summary metric types, \n" +
+                "It is advised " +
                 "that the exported metrics must not contain label names starts with \"bucket_\",\"quantile_\", " +
                 "\"sum\" or \"count\".",
         parameters = {
@@ -471,7 +476,7 @@ public class PrometheusSource extends Source {
      */
     @Override
     public Class[] getOutputEventClasses() {
-        return new Class[]{Map.class};
+        return new Class[]{Map[].class};
     }
 
     /**
@@ -483,7 +488,20 @@ public class PrometheusSource extends Source {
      */
     @Override
     public void connect(ConnectionCallback connectionCallback) throws ConnectionUnavailableException {
-        executorService.execute(prometheusScraper);
+//        executorService.execute(prometheusScraper);
+        Future<?> future = executorService.submit(prometheusScraper);
+        try {
+            future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            // Extract the actual exception from its wrapper
+            Throwable t = e.getCause();
+            log.error("Uncaught exception is detected! " + t
+                    + " st: " + Arrays.toString(t.getStackTrace()));
+            throw new PrometheusSourceException(t);
+            // ... Handle the exception
+        }
     }
 
     /**
@@ -502,7 +520,6 @@ public class PrometheusSource extends Source {
     @Override
     public void destroy() {
         prometheusScraper.clearPrometheusScraper();
-
     }
 
     /**

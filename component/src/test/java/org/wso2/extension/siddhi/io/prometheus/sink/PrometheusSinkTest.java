@@ -581,5 +581,66 @@ public class PrometheusSinkTest {
         Thread.sleep(100);
     }
 
+    /**
+     * test for Prometheus sink in server publish mode.
+     *
+     * @throws Exception Interrupted exception
+     */
+    @Test(sequential = true)
+    public void prometheusSinkTestEventChunk() throws InterruptedException {
+
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Sink test with input event chunk");
+        log.info("----------------------------------------------------------------------------------");
+
+        SiddhiManager siddhiManager = new SiddhiManager();
+
+        String streamDefinition = "" +
+                "define stream InputStream (symbol String, volume int, price double);" +
+                "@sink(type='prometheus'," +
+                "job='prometheusSinkTest'," +
+                "server.url='" + serverURL + "'," +
+                "publish.mode='server'," +
+                "metric.type='gauge'," +
+                "metric.help= 'Server mode test'," +
+                "metric.name= 'testing_metrics'," +
+                "value.attribute= 'volume', " +
+                "@map(type = \'keyvalue\'))"
+                + "Define stream TestStream (symbol String, volume int, price double);";
+        String query = (
+                "@info(name = 'query') "
+                        + "from InputStream "
+                        + "select symbol, volume, price "
+                        + "insert into TestStream;"
+        );
+
+        StreamCallback streamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    eventCount.getAndIncrement();
+                    eventArrived.set(true);
+                }
+            }
+        };
+
+        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streamDefinition + query);
+        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
+        siddhiAppRuntime.addCallback("TestStream", streamCallback);
+        siddhiAppRuntime.start();
+        List<Object[]> inputEvents = new ArrayList<>();
+        Event inputEvent1 = new Event();
+        inputEvent1.setData(new Object[]{"WSO2", 100, 78.8});
+        Event inputEvent2 = new Event();
+        inputEvent2.setData(new Object[]{"IBM", 125, 65.32});
+        Event[] eventArray = new Event[] {inputEvent1, inputEvent2};
+        inputHandler.send(eventArray);
+        inputHandler.send(inputEvent2);
+        Thread.sleep(2000);
+
+        siddhiAppRuntime.shutdown();
+    }
+
+
 
 }
