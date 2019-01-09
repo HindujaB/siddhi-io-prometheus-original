@@ -34,7 +34,7 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.V
 
 
 /**
- * {@code PrometheusSinkUtil } responsible for Prometheus util functions.
+ * {@code PrometheusSinkUtil } responsible for util functions of Prometheus-sink.
  */
 
 public class PrometheusSinkUtil {
@@ -44,17 +44,19 @@ public class PrometheusSinkUtil {
      * Split values by ',' for buckets and quantiles definition.
      *
      * @param inputString string input from sink definition
+     * @param streamID streamId of the stream for error message
      * @return value list as double array
      */
-    public static double[] convertToDoubleArray(String inputString) {
+    public static double[] convertToDoubleArray(String inputString, String streamID) {
         if (!PrometheusConstants.EMPTY_STRING.equals(inputString)) {
             List<String> stringList = Arrays.asList(inputString.split(PrometheusConstants.ELEMENT_SEPARATOR));
 
             try {
                 return stringList.stream().mapToDouble(Double::parseDouble).toArray();
             } catch (NumberFormatException e) {
-                throw new SiddhiAppCreationException("Error in buckets/quantiles format. \n" +
-                        " please insert the numerical values as \"2,3,4,5\" format in sink definition.");
+                throw new SiddhiAppCreationException("The buckets/quantiles field in Prometheus sink associated " +
+                        "with the stream \'" + streamID + "\' is not in the expected format. " +
+                        "please insert the numerical values as \"2,3,4,5\".");
             }
         } else {
             return new double[0];
@@ -65,11 +67,14 @@ public class PrometheusSinkUtil {
      * Validate quantile values to be in between 0 and 1 for summary metric type.
      *
      * @param quantiles quantile values as double array
+     * @param streamID streamId of the stream for error message
      */
-    public static boolean validateQuantiles(double[] quantiles) {
+    public static boolean validateQuantiles(double[] quantiles, String streamID) {
         for (double value : quantiles) {
             if ((value < 0) || (value > 1.0)) {
-                throw new SiddhiAppCreationException("Invalid values for quantiles");
+                throw new SiddhiAppCreationException("The values assigned for quantiles in Prometheus sink associated" +
+                        " with stream \'" + streamID + "\' are invalid." +
+                        "Please insert values between 0 and 1.");
             }
         }
         return true;
@@ -79,9 +84,10 @@ public class PrometheusSinkUtil {
      * Assign metric types according to sink definition.
      *
      * @param metricTypeString value of metric type parameter from sink definition
+     * @param streamID streamId of the stream for error message
      * @return Metric type from Prometheus Collector
      */
-    public static Collector.Type assignMetricType(String metricTypeString) {
+    public static Collector.Type assignMetricType(String metricTypeString, String streamID) {
         Collector.Type metricType;
         switch (metricTypeString.trim().toUpperCase(Locale.ENGLISH)) {
             case "COUNTER": {
@@ -101,7 +107,8 @@ public class PrometheusSinkUtil {
                 break;
             }
             default: {
-                throw new SiddhiAppCreationException("Metric type contains illegal value");
+                throw new SiddhiAppCreationException("The \'metric.type\' field in Prometheus sink associated " +
+                        "with stream \'" + streamID + "\' contains illegal value");
             }
         }
         return metricType;
@@ -111,9 +118,10 @@ public class PrometheusSinkUtil {
      * Retrieve grouping key of a metric as key-value pair.
      *
      * @param groupingKeyString grouping key parameter as string
+     * @param streamID streamId of the stream for error message
      * @return key-value pairs of the grouping key as java string map
      */
-    public static Map<String, String> populateGroupingKey(String groupingKeyString) {
+    public static Map<String, String> populateGroupingKey(String groupingKeyString, String streamID) {
         Map<String, String> groupingKey = new HashMap<>();
         if (!PrometheusConstants.EMPTY_STRING.equals(groupingKeyString)) {
             String[] keyList = groupingKeyString.substring(1, groupingKeyString.length() - 1)
@@ -125,8 +133,9 @@ public class PrometheusSinkUtil {
                     String value = entry[1];
                     groupingKey.put(key, value);
                 } else {
-                    throw new SiddhiAppCreationException("Grouping key is not in the expected format " +
-                            "please insert them as 'key1:val1','key2:val2' format in prometheus sink.");
+                    throw new SiddhiAppCreationException("The grouping key field in Prometheus sink associated " +
+                            "with the stream \'" + streamID + "\' is not in the expected format. " +
+                            "please insert them as 'key1:val1','key2:val2'.");
                 }
             });
         }
@@ -155,63 +164,57 @@ public class PrometheusSinkUtil {
 
     /**
      * user can give custom job name if user did not define them. Then system will read
-     * the default values which is in the deployment yaml.     *
-     *
+     * the default values which is in the deployment yaml.
      * @param sinkConfigReader configuration reader for sink.
+     *
      * @return default job name.
      */
     public static String jobName(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.JOB_NAME_CONFIGURATION,
                 PrometheusConstants.DEFAULT_JOB_NAME);
     }
-
     /**
      * user can give custom URL for Prometheus push gateway if user did not give them inside sink definition. Then
-     * system will read the default values which is in the deployment yaml.     *
-     *
+     * system will read the default values which is in the deployment yaml.
      * @param sinkConfigReader configuration reader for sink.
+     *
      * @return default push gateway URL.
      */
     public static String pushURL(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.PUSH_URL_CONFIGURATION,
                 PrometheusConstants.DEFAULT_PUSH_URL);
     }
-
     /**
      * user can give custom server URL if user did not give them inside sink definition. Then system will read
-     * the default values which is in the deployment yaml.     *
-     *
+     * the default values which is in the deployment yaml.
      * @param sinkConfigReader configuration reader for sink.
+     *
      * @return default server URL.
      */
     public static String serverURL(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.SERVER_URL_CONFIGURATION,
                 PrometheusConstants.DEFAULT_SERVER_URL);
     }
-
     /**
      * user can give custom publish mode if the user did not give them inside sink definition then system read
      * the default values which is in the deployment yaml.
-     *
      * @param sinkConfigReader configuration reader for sink.
+     *
      * @return default publish mode.
      */
     public static String publishMode(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.PUBLISH_MODE_CONFIGURATION,
                 PrometheusConstants.DEFAULT_PUBLISH_MODE);
     }
-
     /**
      * user can give custom grouping key in key-value pairs, if user did not give them inside sink definition.
-     * Then system will read the default values which is in the deployment yaml.     *
-     *
+     * Then system will read the default values which is in the deployment yaml.
      * @param sinkConfigReader configuration reader for sink.
+     *
      * @return default grouping key.
      */
     public static String groupinKey(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.GROUPING_KEY_CONFIGURATION,
                 PrometheusConstants.EMPTY_STRING);
     }
-
-
 }

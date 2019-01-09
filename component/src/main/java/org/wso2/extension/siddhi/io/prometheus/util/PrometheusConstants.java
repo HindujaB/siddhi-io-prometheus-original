@@ -130,4 +130,5 @@ public class PrometheusConstants {
     public static final String LAST_RETRIEVED_SAMPLES = "last.retrieved.samples";
     public static final String LE_KEY = "le";
     public static final String QUANTILE_KEY = "quantile";
+    public static final String PASSTHROUGH_PUBLISH_MODE = "passThrough";
 }

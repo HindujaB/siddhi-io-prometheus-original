@@ -38,7 +38,6 @@ import org.wso2.siddhi.core.stream.output.sink.Sink;
 import org.wso2.siddhi.core.util.config.ConfigReader;
 import org.wso2.siddhi.core.util.transport.DynamicOptions;
 import org.wso2.siddhi.core.util.transport.OptionHolder;
-import org.wso2.siddhi.core.util.transport.TemplateBuilder;
 import org.wso2.siddhi.query.api.annotation.Annotation;
 import org.wso2.siddhi.query.api.definition.Attribute;
 import org.wso2.siddhi.query.api.definition.StreamDefinition;
@@ -59,6 +58,7 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.D
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.HELP_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.METRIC_TYPE;
+import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PASSTHROUGH_PUBLISH_MODE;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PUSH_ADD_OPERATION;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PUSH_OPERATION;
@@ -93,7 +93,7 @@ import static java.lang.Double.parseDouble;
                 @Parameter(
                         name = "publish.mode",
                         description = "This parameter specifies the mode of exposing metrics to Prometheus server." +
-                                "The mode can be either \'server\' or \'pushgateway\'.",
+                                "The possible publish modes are \'server\', \'pushgateway\' and \'passThrough\'.",
                         defaultValue = "server",
                         optional = true,
                         type = {DataType.STRING}
@@ -220,6 +220,17 @@ import static java.lang.Double.parseDouble;
                 ),
                 @Example(
                         syntax =
+                                "@sink(type='prometheus',job='inventoryLevel', server.url ='http://localhost:9081'" +
+                                        ",\n publish.mode='passThrough', metric.type='counter', \n" +
+                                        "metric.help= 'Current level of inventory', @map(type='keyvalue'))\n" +
+                                        "define stream InventoryStream (metric_name String, metric_type String, " +
+                                        "help String, Name String, subtype String, value int);\n",
+                        description = " In the above example, the Prometheus-sink will expose the received events " +
+                                "from Prometheus-source through an http server at the target url " +
+                                "with the Stream name and defined attributes as labels. \n"
+                ),
+                @Example(
+                        syntax =
                                 "@sink(type='prometheus',job='inventoryLevel', push.url='http://localhost:9080',\n " +
                                         "publish.mode='pushGateway', metric.type='gauge',\n" +
                                         " metric.help= 'Current level of inventory', @map(type='keyvalue'))\n" +
@@ -297,6 +308,7 @@ public class PrometheusSink extends Sink {
     private PushGateway pushGateway;
     private CollectorRegistry collectorRegistry;
     private String registeredMetrics;
+    private ConfigReader configReader;
 
     @Override
     public Class[] getSupportedInputEventClasses() {
@@ -311,8 +323,10 @@ public class PrometheusSink extends Sink {
     @Override
     protected void init(StreamDefinition outputstreamDefinition, OptionHolder optionHolder, ConfigReader configReader,
                         SiddhiAppContext siddhiAppContext) {
+        String streamID = outputstreamDefinition.getId();
         if (!optionHolder.isOptionExists(PrometheusConstants.METRIC_TYPE)) {
-            throw new SiddhiAppCreationException("mandatory field \'metric.type\' is not found in sink configuration");
+            throw new SiddhiAppCreationException("The mandatory field \'metric.type\' is not found in Prometheus " +
+                    "sink associated with stream \'" + streamID + " \'");
         }
 
         //check for custom mapping
@@ -321,11 +335,12 @@ public class PrometheusSink extends Sink {
             List<Annotation> mapAnnotation = annotation.getAnnotations(PrometheusConstants.MAP_ANNOTATION);
             for (Annotation annotationMap : mapAnnotation) {
                 if (!annotationMap.getAnnotations(PrometheusConstants.PAYLOAD_ANNOTATION).isEmpty()) {
-                    throw new SiddhiAppCreationException("Unsupported mapping");
+                    throw new SiddhiAppCreationException("Custom mapping associated with stream \'" +
+                            streamID + "\' is not supported by Prometheus sink");
                 }
             }
         }
-
+        this.configReader = configReader;
         this.jobName = optionHolder.validateAndGetStaticValue(PrometheusConstants.JOB_NAME,
                 PrometheusSinkUtil.jobName(configReader));
         this.pushURL = optionHolder.validateAndGetStaticValue(PrometheusConstants.PUSH_URL,
@@ -334,7 +349,8 @@ public class PrometheusSink extends Sink {
                 PrometheusSinkUtil.serverURL(configReader));
         this.publishMode = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_PUBLISH_MODE,
                 PrometheusSinkUtil.publishMode(configReader));
-        this.metricType = PrometheusSinkUtil.assignMetricType(optionHolder.validateAndGetStaticValue(METRIC_TYPE));
+        this.metricType = PrometheusSinkUtil.assignMetricType(optionHolder.validateAndGetStaticValue(METRIC_TYPE),
+                streamID);
         this.metricHelp = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_HELP,
                 HELP_STRING + metricType + SPACE_STRING + metricName).trim();
         this.buckets = optionHolder.validateAndGetStaticValue(PrometheusConstants.BUCKET_DEFINITION, EMPTY_STRING);
@@ -342,11 +358,12 @@ public class PrometheusSink extends Sink {
         this.attributes = outputstreamDefinition.getAttributeList()
                 .stream().map(Attribute::getName).collect(Collectors.toList());
         this.metricName = optionHolder.validateAndGetStaticValue(
-                PrometheusConstants.METRIC_NAME, outputstreamDefinition.getId()).trim();
+                PrometheusConstants.METRIC_NAME, streamID.trim());
         this.pushOperation = optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.PUSH_DEFINITION, PrometheusConstants.PUSH_ADD_OPERATION).trim();
         this.groupingKey = PrometheusSinkUtil.populateGroupingKey(optionHolder.validateAndGetStaticValue(
-                PrometheusConstants.GROUPING_KEY_DEFINITION, PrometheusSinkUtil.groupinKey(configReader)).trim());
+                PrometheusConstants.GROUPING_KEY_DEFINITION, PrometheusSinkUtil.groupinKey(configReader)).trim(),
+                streamID);
         this.valueAttribute = optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.VALUE_ATTRIBUTE, VALUE_STRING).trim();
         try {
@@ -356,21 +373,27 @@ public class PrometheusSink extends Sink {
                 throw new NumberFormatException();
             }
         } catch (NumberFormatException e) {
-            throw new SiddhiAppCreationException("Invalid value for \'quantile.error\'");
+            throw new SiddhiAppCreationException("Invalid value for \'quantile.error\' in Prometheus sink " +
+                    "associated with stream \'" + streamID + "\'. Value must be between 0 and 1");
         }
 
         if (!publishMode.equalsIgnoreCase(SERVER_PUBLISH_MODE) &&
-                !publishMode.equalsIgnoreCase(PUSHGATEWAY_PUBLISH_MODE)) {
-            throw new SiddhiAppCreationException("Invalid publish mode : " + publishMode);
+                !publishMode.equalsIgnoreCase(PUSHGATEWAY_PUBLISH_MODE) &&
+                !publishMode.equalsIgnoreCase(PASSTHROUGH_PUBLISH_MODE)) {
+            throw new SiddhiAppCreationException("Invalid publish mode : " + publishMode + " in Prometheus sink " +
+                    "associated with stream \'" + streamID + "\'.");
         }
 
         if (!metricName.matches(PrometheusConstants.METRIC_NAME_REGEX)) {
-            throw new SiddhiAppCreationException("Invalid format of metric name: " + metricName);
+            throw new SiddhiAppCreationException("Metric name \'" + metricName + "\' does not match the regex " +
+                    "\"[a-zA-Z_:][a-zA-Z0-9_:]*\" in Prometheus sink associated with stream \'"
+                    + streamID + "\'.");
         }
 
         if (!pushOperation.equalsIgnoreCase(PUSH_OPERATION) &&
                 !pushOperation.equalsIgnoreCase(PUSH_ADD_OPERATION)) {
-            throw new SiddhiAppCreationException("Invalid value for push operation : " + pushOperation);
+            throw new SiddhiAppCreationException("Invalid value for push operation : " + pushOperation +
+                    " in Prometheus sink associated with stream \'" + streamID + "\'.");
         }
 
         // checking for value attribute and its type in stream definintion
@@ -378,31 +401,36 @@ public class PrometheusSink extends Sink {
             Attribute.Type valueType = outputstreamDefinition.getAttributeType(valueAttribute);
             if (valueType.equals(Attribute.Type.STRING) || valueType.equals(Attribute.Type.BOOL) ||
                     valueType.equals(Attribute.Type.OBJECT)) {
-                throw new SiddhiAppCreationException("Invalid type for " + valueAttribute + " attribute");
+                throw new SiddhiAppCreationException("The field value attribute \'" + valueAttribute + " \'contains " +
+                        "unsupported type in Prometheus sink associated with stream \'" + streamID + "\'");
             }
         } catch (AttributeNotExistException exception) {
             throw new SiddhiAppCreationException("The value attribute \'" + valueAttribute + "\' is not found " +
-                    "in stream definition.");
+                    "in Prometheus sink associated with stream \'" + streamID + "\'");
         }
 
         // checking unsupported metric types for 'buckets'
         if (!buckets.isEmpty()) {
             if (metricType.equals(Collector.Type.COUNTER) ||
                     metricType.equals(Collector.Type.GAUGE) || metricType.equals(Collector.Type.SUMMARY)) {
-                throw new SiddhiAppCreationException("Unsupported metric type for buckets");
+                throw new SiddhiAppCreationException("The buckets field in Prometheus sink associated with stream \'" +
+                        streamID + "\' is not supported " +
+                        "for metric type \'" + metricType + "\'.");
             }
         }
         // checking unsupported metric types for 'quantiles' and unsupported values for quantiles
         if (!quantiles.isEmpty()) {
             if (metricType.equals(Collector.Type.COUNTER) ||
                     metricType.equals(Collector.Type.GAUGE) || metricType.equals(Collector.Type.HISTOGRAM)) {
-                throw new SiddhiAppCreationException("unsupported metric type for quantiles");
+                throw new SiddhiAppCreationException("The quantiles field in Prometheus sink associated with " +
+                        "stream \'" + streamID + "\' is not supported " +
+                        "for metric type \'" + metricType + "\'.");
             }
         }
         prometheusMetricBuilder = new PrometheusMetricBuilder(metricName, metricHelp, metricType, attributes);
-        prometheusMetricBuilder.setHistogramBuckets(PrometheusSinkUtil.convertToDoubleArray(buckets.trim()));
-        double[] quantileValues = PrometheusSinkUtil.convertToDoubleArray(quantiles.trim());
-        if (PrometheusSinkUtil.validateQuantiles(quantileValues)) {
+        prometheusMetricBuilder.setHistogramBuckets(PrometheusSinkUtil.convertToDoubleArray(buckets.trim(), streamID));
+        double[] quantileValues = PrometheusSinkUtil.convertToDoubleArray(quantiles.trim(), streamID);
+        if (PrometheusSinkUtil.validateQuantiles(quantileValues, streamID)) {
             prometheusMetricBuilder.setQuantiles(quantileValues, quantileError);
         }
         switch (publishMode) {
@@ -419,17 +447,11 @@ public class PrometheusSink extends Sink {
 
     @Override
     public void publish(Object payload, DynamicOptions dynamicOptions) throws ConnectionUnavailableException {
-        if(payload instanceof Map) {
-            Map<String, Object> attributeMap = (Map<String, Object>) payload;
-            String[] labels;
-            double value = parseDouble(attributeMap.get(valueAttribute).toString());
-            labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
-            prometheusMetricBuilder.insertValues(value, labels);
-        } else if(payload instanceof Map[]) {
-            Map[] mapArray = (Map[]) payload;
-            analyseMapArray(mapArray, metricType);
-
-        }
+        Map<String, Object> attributeMap = (Map<String, Object>) payload;
+        String[] labels;
+        double value = parseDouble(attributeMap.get(valueAttribute).toString());
+        labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
+        prometheusMetricBuilder.insertValues(value, labels);
         if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
             try {
                 switch (pushOperation) {
@@ -443,7 +465,8 @@ public class PrometheusSink extends Sink {
                         //default will never be executed
                 }
             } catch (IOException e) {
-                log.error("Unable to establish connection", new ConnectionUnavailableException(e));
+                log.error("Unable to establish connection for Prometheus sink associated with stream \'" +
+                        getStreamDefinition().getId() + "\' at " + pushURL, new ConnectionUnavailableException(e));
             }
         }
     }
@@ -456,28 +479,41 @@ public class PrometheusSink extends Sink {
                 case PrometheusConstants.SERVER_PUBLISH_MODE:
                     target = new URL(serverURL);
                     initiateServer(target.getHost(), target.getPort());
-                    log.info(metricName + " has successfully connected at " + serverURL);
+                    log.info(getStreamDefinition().getId() + " has successfully connected at " + serverURL);
                     break;
                 case PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE:
                     target = new URL(pushURL);
                     pushGateway = new PushGateway(target);
                     try {
                         pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
-                        log.info(metricName + " has successfully connected to pushGateway at " + pushURL);
+                        log.info(getStreamDefinition().getId() + " has successfully connected to pushGateway at "
+                                + pushURL);
                     } catch (IOException e) {
                         if (e.getMessage().equalsIgnoreCase("Connection refused (Connection refused)")) {
-                            log.error("Pushgateway is not listening at " + target,
+                            log.error("The stream \'" + getStreamDefinition().getId() + "\' of Prometheus sink " +
+                                            "could not connect to Pushgateway." +
+                                            " Prometheus pushgateway is not listening at " + target,
                                     new ConnectionUnavailableException(e));
                         }
                     }
                     break;
+                case PrometheusConstants.PASSTHROUGH_PUBLISH_MODE:
+                    target = new URL(serverURL);
+                    initiatePassThroughServer(target);
+                    log.info(metricName + " has successfully connected at " + serverURL + "in passThrough mode");
+                    break;
                 default:
                     //default will never be executed
             }
+            prometheusMetricBuilder.registerMetric(valueAttribute);
         } catch (MalformedURLException e) {
-            throw new ConnectionUnavailableException("Error in URL " + e);
+            throw new ConnectionUnavailableException("Error in URL format in Prometheus sink associated with stream \'"
+                    + getStreamDefinition().getId() + "\'. \n " + e);
         }
-        prometheusMetricBuilder.registerMetric(valueAttribute);
+    }
+
+    private void initiatePassThroughServer(URL target) {
+
     }
 
     private void initiateServer(String host, int port) {
@@ -486,7 +522,9 @@ public class PrometheusSink extends Sink {
             server = new HTTPServer(address, collectorRegistry);
         } catch (IOException e) {
             if (!(e instanceof BindException && e.getMessage().equals("Address already in use"))) {
-                log.error("Unable to establish connection ", new ConnectionUnavailableException(e));
+                log.error("Unable to establish connection for Prometheus sink associated with stream \'" +
+                                getStreamDefinition().getId() + "\' at " + serverURL,
+                        new ConnectionUnavailableException(e));
             }
         }
     }
@@ -495,7 +533,7 @@ public class PrometheusSink extends Sink {
     public void disconnect() {
         if (server != null) {
             server.stop();
-            log.info("server stopped successfully at " + serverURL);
+            log.info("Server successfully stopped at " + serverURL);
         }
     }
 
@@ -533,90 +571,6 @@ public class PrometheusSink extends Sink {
             }
         }
         return "";
-    }
-    private void analyseMapArray(Map[] mapArray, Collector.Type metricType) {
-        switch (metricType) {
-            case COUNTER:
-            case GAUGE: {
-                for(Map eventMap : mapArray) {
-                    eventMap.remove(PrometheusConstants.MAP_NAME);
-                    eventMap.remove(PrometheusConstants.MAP_TYPE);
-                    eventMap.remove(PrometheusConstants.MAP_HELP);
-                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
-                    double value = parseDouble(eventMap.get(valueAttribute).toString());
-//                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
-                    String[] labels = PrometheusSinkUtil.populateLabelArray(eventMap, valueAttribute);
-                    prometheusMetricBuilder.insertValues(value, labels);
-                }
-                break;
-            }
-            case HISTOGRAM: {
-                int count = 0;
-                int sum = 0;
-                String[] labels = new String[0];
-                for(Map eventMap : mapArray) {
-                    eventMap.remove(PrometheusConstants.MAP_NAME);
-                    eventMap.remove(PrometheusConstants.MAP_TYPE);
-                    eventMap.remove(PrometheusConstants.MAP_HELP);
-                    switch (eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString()) {
-                        case PrometheusConstants.SUBTYPE_BUCKET:{
-
-                        }
-                        case PrometheusConstants.SUBTYPE_COUNT: {
-                            count = Integer.parseInt(eventMap.get(valueAttribute).toString());
-                        }
-                        case PrometheusConstants.SUBTYPE_SUM: {
-                            sum = Integer.parseInt(eventMap.get(valueAttribute).toString());
-                        }
-                        default: {
-                        }
-                    }
-                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
-                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
-                    labels = PrometheusSinkUtil.populateLabelArray(eventMap, valueAttribute);
-                }
-                prometheusMetricBuilder.insertValues(sum, labels);
-                for(int i = 0; i < count; i++) {
-                    prometheusMetricBuilder.insertValues(0, labels);
-                }
-            }
-            case SUMMARY: {
-                int count = 0;
-                int sum = 0;
-                String[] labels = new String[0];
-                for(Map eventMap : mapArray) {
-                    eventMap.remove(PrometheusConstants.MAP_NAME);
-                    eventMap.remove(PrometheusConstants.MAP_TYPE);
-                    eventMap.remove(PrometheusConstants.MAP_HELP);
-                    switch (eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString()) {
-                        case PrometheusConstants.SUBTYPE_NULL:{
-
-                        }
-                        case PrometheusConstants.SUBTYPE_COUNT: {
-                            count = Integer.parseInt(eventMap.get(valueAttribute).toString());
-                        }
-                        case PrometheusConstants.SUBTYPE_SUM: {
-                            sum = Integer.parseInt(eventMap.get(valueAttribute).toString());
-                        }
-                        default: {
-                        }
-                    }
-                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
-                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
-                    labels = PrometheusSinkUtil.populateLabelArray(eventMap, valueAttribute);
-                }
-                prometheusMetricBuilder.insertValues(sum, labels);
-                for(int i = 0; i < count; i++) {
-                    prometheusMetricBuilder.insertValues(0, labels);
-                }
-            }
-            default: {
-                //default will never be executed
-            }
-        }
-
-
-
     }
 }
 
