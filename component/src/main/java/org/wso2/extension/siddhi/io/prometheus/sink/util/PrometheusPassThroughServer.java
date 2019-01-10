@@ -137,11 +137,17 @@ public class PrometheusPassThroughServer {
                 eventMap.remove(PrometheusConstants.MAP_NAME);
                 eventMap.remove(PrometheusConstants.MAP_TYPE);
                 eventMap.remove(PrometheusConstants.MAP_HELP);
-                String subType = eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
-                eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+                String subType = PrometheusConstants.EMPTY_STRING;
+                if (eventMap.containsKey(PrometheusConstants.MAP_SAMPLE_SUBTYPE)) {
+                    subType = eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+                }
                 String sampleName = setSampleName(subType);
-                double value = parseDouble(eventMap.get(PrometheusConstants.MAP_SAMPLE_VALUE).toString());
-                eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+                double value = 0.0;
+                if (eventMap.containsKey(PrometheusConstants.MAP_SAMPLE_VALUE)) {
+                    value = parseDouble(eventMap.get(PrometheusConstants.MAP_SAMPLE_VALUE).toString());
+                    eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+                }
                 builder.append(sampleName);
                 if (eventMap.size() > 0) {
                     builder.append("{");
