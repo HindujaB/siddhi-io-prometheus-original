@@ -68,8 +68,8 @@ public class PrometheusPassThroughServer {
 
     }
 
-    public void publishResponse(Map[] inputEvents) {
-        responseGenerator.generateResponseBody(inputEvents);
+    public void publishResponse(Map<String, Object> inputEvent) {
+        responseGenerator.generateResponseBody(inputEvent);
         serverListener.setPayload(responseGenerator.response);
     }
 
@@ -123,39 +123,31 @@ public class PrometheusPassThroughServer {
             this.metric_help = metric_help;
         }
 
-        void generateResponseBody(Map[] inputEvents) {
-            Map<String, Object>[] metricMapArray = (Map<String, Object>[]) inputEvents;
-            validateAndOverrideMetricProperties(metricMapArray);
+        void generateResponseBody(Map<String, Object> inputEvent) {
+            validateAndOverrideMetricProperties(inputEvent);
             StringBuilder builder = new StringBuilder(response);
-            builder.append("# HELP ").append(metric_name);
-            builder.append(PrometheusConstants.SPACE_STRING).append(metric_help);
-            builder.append(System.lineSeparator());
-            builder.append("# TYPE ").append(metric_name).append(PrometheusConstants.SPACE_STRING);
-            builder.append(PrometheusSinkUtil.getMetricTypeString(metric_type));
-            builder.append(System.lineSeparator());
-            for (Map<String, Object> eventMap : metricMapArray) {
-                eventMap.remove(PrometheusConstants.MAP_NAME);
-                eventMap.remove(PrometheusConstants.MAP_TYPE);
-                eventMap.remove(PrometheusConstants.MAP_HELP);
-                String subType = eventMap.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
-                eventMap.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
-                String sampleName = setSampleName(subType);
-                double value = parseDouble(eventMap.get(PrometheusConstants.MAP_SAMPLE_VALUE).toString());
-                eventMap.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
-                builder.append(sampleName);
-                if (eventMap.size() > 0) {
-                    builder.append("{");
-                    for (Map.Entry<String, Object> entry : eventMap.entrySet()) {
-                        builder.append(entry.getKey()).append("=\"");
-                        replaceEscapeCharacters((String) entry.getValue(), builder);
-                        builder.append("\",");
-                    }
-                    builder.append("}");
+            PassThroughMetricHolder.writeMetricProperties(metric_name, metric_type, metric_help, builder);
+            inputEvent.remove(PrometheusConstants.MAP_NAME);
+            inputEvent.remove(PrometheusConstants.MAP_TYPE);
+            inputEvent.remove(PrometheusConstants.MAP_HELP);
+            String subType = inputEvent.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
+            inputEvent.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+            String sampleName = setSampleName(subType);
+            double value = parseDouble(inputEvent.get(PrometheusConstants.MAP_SAMPLE_VALUE).toString());
+            inputEvent.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+            builder.append(sampleName);
+            if (inputEvent.size() > 0) {
+                builder.append("{");
+                for (Map.Entry<String, Object> entry : inputEvent.entrySet()) {
+                    builder.append(entry.getKey()).append("=\"");
+                    replaceEscapeCharacters((String) entry.getValue(), builder);
+                    builder.append("\",");
                 }
-                builder.append(PrometheusConstants.SPACE_STRING);
-                builder.append(valueToString(value));
-                builder.append(System.lineSeparator());
+                builder.append("}");
             }
+            builder.append(PrometheusConstants.SPACE_STRING);
+            builder.append(valueToString(value));
+            builder.append(System.lineSeparator());
             response = builder.toString();
         }
 
@@ -216,8 +208,7 @@ public class PrometheusPassThroughServer {
             }
         }
 
-        private void validateAndOverrideMetricProperties(Map<String, Object>[] metricMapArray) {
-            Map<String, Object> metricMap = metricMapArray[0];
+        private void validateAndOverrideMetricProperties(Map<String, Object> metricMap) {
             String metricName = metricMap.get(PrometheusConstants.MAP_NAME).toString();
             String metricType = metricMap.get(PrometheusConstants.MAP_TYPE).toString();
             String metricHelp = metricMap.get(PrometheusConstants.MAP_HELP).toString();
