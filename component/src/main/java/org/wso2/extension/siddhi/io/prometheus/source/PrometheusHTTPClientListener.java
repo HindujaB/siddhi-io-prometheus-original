@@ -25,13 +25,13 @@ import org.wso2.transport.http.netty.message.Http2PushPromise;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * {@code PrometheusHTTPListener} Handles the HTTP listener.
+ * {@code PrometheusHTTPClientListener} Handles the HTTP listener.
  */
-public class PrometheusHTTPListener implements HttpConnectorListener {
+public class PrometheusHTTPClientListener implements HttpConnectorListener {
     private HTTPCarbonMessage httpMessage;
    private CountDownLatch latch;
 
-    PrometheusHTTPListener(CountDownLatch latch) {
+    PrometheusHTTPClientListener(CountDownLatch latch) {
         this.latch = latch;
     }
 

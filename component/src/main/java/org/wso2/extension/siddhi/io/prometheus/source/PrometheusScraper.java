@@ -136,7 +136,7 @@ public class PrometheusScraper implements Runnable {
         carbonMessage.completeMessage();
         HttpResponseFuture httpResponseFuture = clientConnector.send(carbonMessage);
 
-        PrometheusHTTPListener httpListener = new PrometheusHTTPListener(latch);
+        PrometheusHTTPClientListener httpListener = new PrometheusHTTPClientListener(latch);
         httpResponseFuture.setHttpConnectorListener(httpListener);
         try {
             latch.await(90,TimeUnit.SECONDS);

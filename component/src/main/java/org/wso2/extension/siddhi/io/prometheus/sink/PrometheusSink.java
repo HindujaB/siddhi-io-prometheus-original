@@ -24,6 +24,7 @@ import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.exporter.PushGateway;
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.sink.util.PrometheusMetricBuilder;
+import org.wso2.extension.siddhi.io.prometheus.sink.util.PrometheusPassThroughServer;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSinkUtil;
 import org.wso2.siddhi.annotation.Example;
@@ -110,9 +111,9 @@ import static java.lang.Double.parseDouble;
                 @Parameter(
                         name = "server.url",
                         description = "This parameter specifies the url where the http server will be initiated " +
-                                "to expose metrics. This url must be previously defined in prometheus " +
-                                "configuration file as a target. By default, the http server will be initiated at" +
-                                "\'http://localhost:9080\'",
+                                "to expose metrics for \'server\', \'passThrough\' publish modes. This url must be " +
+                                "previously defined in prometheus configuration file as a target. By default, the " +
+                                "http server will be initiated at \'http://localhost:9080\'.",
                         optional = true,
                         defaultValue = "http://localhost:9080",
                         type = {DataType.STRING}
@@ -307,6 +308,7 @@ public class PrometheusSink extends Sink {
     private HTTPServer server;
     private PushGateway pushGateway;
     private CollectorRegistry collectorRegistry;
+    private PrometheusPassThroughServer passThroughServer;
     private String registeredMetrics;
     private ConfigReader configReader;
 
@@ -328,7 +330,6 @@ public class PrometheusSink extends Sink {
             throw new SiddhiAppCreationException("The mandatory field \'metric.type\' is not found in Prometheus " +
                     "sink associated with stream \'" + streamID + " \'");
         }
-
         //check for custom mapping
         List<Annotation> annotations = outputstreamDefinition.getAnnotations();
         for (Annotation annotation : annotations) {
@@ -447,26 +448,35 @@ public class PrometheusSink extends Sink {
 
     @Override
     public void publish(Object payload, DynamicOptions dynamicOptions) throws ConnectionUnavailableException {
-        Map<String, Object> attributeMap = (Map<String, Object>) payload;
-        String[] labels;
-        double value = parseDouble(attributeMap.get(valueAttribute).toString());
-        labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
-        prometheusMetricBuilder.insertValues(value, labels);
-        if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
-            try {
-                switch (pushOperation) {
-                    case PrometheusConstants.PUSH_OPERATION:
-                        pushGateway.push(collectorRegistry, jobName, groupingKey);
-                        break;
-                    case PrometheusConstants.PUSH_ADD_OPERATION:
-                        pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
-                        break;
-                    default:
-                        //default will never be executed
+        if (PrometheusConstants.PASSTHROUGH_PUBLISH_MODE.equals(publishMode)) {
+            if (!(payload instanceof Map[])) {
+                log.error("The received type of events does not supported by \'passThrough\' publish mode in stream " +
+                        "\'" + getStreamDefinition().getId() + "\' of Prometheus sink.");
+            } else {
+                passThroughServer.publishResponse((Map[]) payload);
+            }
+        } else {
+            Map<String, Object> attributeMap = (Map<String, Object>) payload;
+            String[] labels;
+            double value = parseDouble(attributeMap.get(valueAttribute).toString());
+            labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
+            prometheusMetricBuilder.insertValues(value, labels);
+            if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
+                try {
+                    switch (pushOperation) {
+                        case PrometheusConstants.PUSH_OPERATION:
+                            pushGateway.push(collectorRegistry, jobName, groupingKey);
+                            break;
+                        case PrometheusConstants.PUSH_ADD_OPERATION:
+                            pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
+                            break;
+                        default:
+                            //default will never be executed
+                    }
+                } catch (IOException e) {
+                    log.error("Unable to establish connection for Prometheus sink associated with stream \'" +
+                            getStreamDefinition().getId() + "\' at " + pushURL, new ConnectionUnavailableException(e));
                 }
-            } catch (IOException e) {
-                log.error("Unable to establish connection for Prometheus sink associated with stream \'" +
-                        getStreamDefinition().getId() + "\' at " + pushURL, new ConnectionUnavailableException(e));
             }
         }
     }
@@ -480,6 +490,7 @@ public class PrometheusSink extends Sink {
                     target = new URL(serverURL);
                     initiateServer(target.getHost(), target.getPort());
                     log.info(getStreamDefinition().getId() + " has successfully connected at " + serverURL);
+                    prometheusMetricBuilder.registerMetric(valueAttribute);
                     break;
                 case PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE:
                     target = new URL(pushURL);
@@ -496,16 +507,16 @@ public class PrometheusSink extends Sink {
                                     new ConnectionUnavailableException(e));
                         }
                     }
+                    prometheusMetricBuilder.registerMetric(valueAttribute);
                     break;
                 case PrometheusConstants.PASSTHROUGH_PUBLISH_MODE:
                     target = new URL(serverURL);
                     initiatePassThroughServer(target);
-                    log.info(metricName + " has successfully connected at " + serverURL + "in passThrough mode");
+                    log.info(metricName + " has successfully connected at " + serverURL + " in passThrough mode");
                     break;
                 default:
                     //default will never be executed
             }
-            prometheusMetricBuilder.registerMetric(valueAttribute);
         } catch (MalformedURLException e) {
             throw new ConnectionUnavailableException("Error in URL format in Prometheus sink associated with stream \'"
                     + getStreamDefinition().getId() + "\'. \n " + e);
@@ -513,7 +524,9 @@ public class PrometheusSink extends Sink {
     }
 
     private void initiatePassThroughServer(URL target) {
-
+        passThroughServer = new PrometheusPassThroughServer(target);
+        passThroughServer.initiateResponseGenerator(metricName, metricType, metricHelp);
+        passThroughServer.start();
     }
 
     private void initiateServer(String host, int port) {
@@ -535,13 +548,15 @@ public class PrometheusSink extends Sink {
             server.stop();
             log.info("Server successfully stopped at " + serverURL);
         }
+        if (passThroughServer != null) {
+            passThroughServer.stop();
+        }
     }
 
     @Override
     public void destroy() {
-        CollectorRegistry registry = prometheusMetricBuilder.getRegistry();
-        if (registry != null) {
-            registry.clear();
+        if (collectorRegistry != null) {
+            collectorRegistry.clear();
         }
     }
 

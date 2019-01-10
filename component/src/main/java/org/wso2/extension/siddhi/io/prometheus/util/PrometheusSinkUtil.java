@@ -217,4 +217,30 @@ public class PrometheusSinkUtil {
         return sinkConfigReader.readConfig(PrometheusConstants.GROUPING_KEY_CONFIGURATION,
                 PrometheusConstants.EMPTY_STRING);
     }
+
+    /**
+     * To retrieve the name of the metric type in String from {@code Collector.Type}
+     * @param metricType metric type from {@code Collector.Type}
+     * @return name of the metric type
+     */
+    public static String getMetricTypeString(Collector.Type metricType) {
+        switch (metricType) {
+            case COUNTER: {
+                return "counter";
+            }
+            case GAUGE: {
+                return "gauge";
+            }
+            case HISTOGRAM: {
+                return "histogram";
+            }
+            case SUMMARY: {
+                return "summary";
+            }
+            default: {
+                return null;
+               // default will never be executed
+            }
+        }
+    }
 }
