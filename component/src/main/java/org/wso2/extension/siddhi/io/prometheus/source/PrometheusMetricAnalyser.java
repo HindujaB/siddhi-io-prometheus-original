@@ -112,10 +112,6 @@ class PrometheusMetricAnalyser {
     }
 
     private void generateMaps(List<String> retrievedMetrics) {
-        List<Map<String,Object>> mapList = new ArrayList<>();
-
-        Map<String, String> labelValues = setIdealSample(retrievedMetrics.get(0));
-
         for (String sampleSingleLine : retrievedMetrics) {
             Map<String, Object> metricMap = new LinkedHashMap<>();
             metricMap.put(PrometheusConstants.MAP_NAME, metricName);
@@ -146,45 +142,12 @@ class PrometheusMetricAnalyser {
                     labelValueMap.remove(entry.getKey());
                 }
             }
-            MapDifference<String, String> mapDifference = Maps.difference(labelValues, labelValueMap);
-            Map<String, MapDifference.ValueDifference<String>> valueDifferenceMap = mapDifference
-                    .entriesDiffering();
-            if (valueDifferenceMap.size() != 0) {
-                if(valueDifferenceMap.containsKey(PrometheusConstants.QUANTILE_KEY) ||
-                        valueDifferenceMap.containsKey(PrometheusConstants.LE_KEY)){
-                    valueDifferenceMap.remove(PrometheusConstants.QUANTILE_KEY);
-                    valueDifferenceMap.remove(PrometheusConstants.LE_KEY);
-                }
-            }
-            if (!valueDifferenceMap.isEmpty()) {
-                handleEvent(mapList);
-                mapList.clear();
-//                mapList.add(generateMap(metricLabels, metricValue, count, sum, quantiles, buckets));
-                labelValues = setIdealSample(sampleSingleLine);
-            }
             for (Map.Entry<String, String> entry : labelValueMap.entrySet()) {
                 metricMap.put(entry.getKey(), entry.getValue());
             }
             metricMap.put(PrometheusConstants.MAP_SAMPLE_VALUE, value);
-            mapList.add(metricMap);
-            if (retrievedMetrics.indexOf(sampleSingleLine) == retrievedMetrics.size() -1) {
-                handleEvent(mapList);
-            }
+            handleEvent(metricMap);
         }
-    }
-
-    private Map<String, String> setIdealSample(String sample) {
-        Map<String, String> idealSample = filterMetric(sample);
-        idealSample.remove("job");
-        idealSample.remove("instance");
-        if (metricGroupingKey != null) {
-            for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
-                idealSample.remove(entry.getKey());
-            }
-        }
-        idealSample.remove("quantile");
-        idealSample.remove("le");
-        return idealSample;
     }
 
     private void addLeAndQuantileKeys(Map<String, String> labelValueMap) {
@@ -200,8 +163,8 @@ class PrometheusMetricAnalyser {
         }
     }
 
-    private void handleEvent(List<Map<String, Object>> eventMapList) {
-        sourceEventListener.onEvent(eventMapList.toArray(), null);
+    private void handleEvent(Map<String, Object> metricMap) {
+        sourceEventListener.onEvent(metricMap, null);
     }
 
 
@@ -230,14 +193,4 @@ class PrometheusMetricAnalyser {
         return this.lastValidSample;
     }
 
-    private static byte[] toByteArray(Object object) throws IOException {
-        byte[] bytes;
-        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-             ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteStream)) {
-            objectOutputStream.writeObject(object);
-            objectOutputStream.flush();
-            bytes = byteStream.toByteArray();
-        }
-        return bytes;
-    }
 }

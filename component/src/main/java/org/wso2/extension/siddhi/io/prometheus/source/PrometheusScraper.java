@@ -139,7 +139,7 @@ public class PrometheusScraper implements Runnable {
         PrometheusHTTPClientListener httpListener = new PrometheusHTTPClientListener(latch);
         httpResponseFuture.setHttpConnectorListener(httpListener);
         try {
-            latch.await(90,TimeUnit.SECONDS);
+            latch.await(30,TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             log.debug("Thread waiting time-out issue: " + e);
         }

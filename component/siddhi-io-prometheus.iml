@@ -42,7 +42,7 @@
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_pushgateway:0.5.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_common:0.5.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_httpserver:0.5.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.wso2.extension.siddhi.map.keyvalue:siddhi-map-keyvalue:1.0.18-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.wso2.extension.siddhi.map.keyvalue:siddhi-map-keyvalue:1.0.17" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.wso2.orbit.org.apache.tapestry:tapestry-json:5.4.1.wso2v1" level="project" />
     <orderEntry type="library" name="Maven: org.wso2.transport.http:org.wso2.transport.http.netty:6.0.163" level="project" />
     <orderEntry type="library" name="Maven: org.wso2.eclipse.osgi:org.eclipse.osgi:3.10.2.v20150203-1939" level="project" />

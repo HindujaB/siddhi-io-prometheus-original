@@ -279,7 +279,7 @@ import static java.lang.Double.parseDouble;
                                 "pairs. Grouping key is used only in pushGateway mode in order to distinguish the " +
                                 "metrics from already existing metrics under same job. " +
                                 "The expected format of the grouping key is as follows: " +
-                                "\"'key1:value1','key2:value2'\"",
+                                "\"'key1:value1','key2:value2'\" .",
                         defaultValue = "null",
                         possibleParameters = "Any key value pairs in the supported format"
                 )

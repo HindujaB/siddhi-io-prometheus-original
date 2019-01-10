@@ -476,7 +476,7 @@ public class PrometheusSource extends Source {
      */
     @Override
     public Class[] getOutputEventClasses() {
-        return new Class[]{Map[].class};
+        return new Class[]{Map.class};
     }
 
     /**
@@ -488,20 +488,7 @@ public class PrometheusSource extends Source {
      */
     @Override
     public void connect(ConnectionCallback connectionCallback) throws ConnectionUnavailableException {
-//        executorService.execute(prometheusScraper);
-        Future<?> future = executorService.submit(prometheusScraper);
-        try {
-            future.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (ExecutionException e) {
-            // Extract the actual exception from its wrapper
-            Throwable t = e.getCause();
-            log.error("Uncaught exception is detected! " + t
-                    + " st: " + Arrays.toString(t.getStackTrace()));
-            throw new PrometheusSourceException(t);
-            // ... Handle the exception
-        }
+        executorService.execute(prometheusScraper);
     }
 
     /**
