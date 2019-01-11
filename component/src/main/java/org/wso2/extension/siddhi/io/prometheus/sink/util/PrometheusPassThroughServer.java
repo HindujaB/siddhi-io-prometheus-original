@@ -31,7 +31,9 @@ import org.wso2.transport.http.netty.contractimpl.DefaultHttpWsConnectorFactory;
 import org.wso2.transport.http.netty.listener.ServerBootstrapConfiguration;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static java.lang.Double.parseDouble;
@@ -41,8 +43,8 @@ import static java.lang.Double.parseDouble;
  */
 public class PrometheusPassThroughServer {
     private static final Logger log = Logger.getLogger(PrometheusPassThroughServer.class);
+    private static List<String> recordedMetricsList = new ArrayList<>();
     private URL serverURL;
-    private ServerConnectorFuture serverConnectorFuture;
     private ServerConnector serverConnector;
     private ResponseGenerator responseGenerator;
     private PrometheusHTTPServerListener serverListener;
@@ -62,7 +64,7 @@ public class PrometheusPassThroughServer {
         ListenerConfiguration listenerConfiguration = getListenerConfiguration(serverURL);
         serverConnector = connectorFactory
                 .createServerConnector(new ServerBootstrapConfiguration(new HashMap<>()), listenerConfiguration);
-        serverConnectorFuture = serverConnector.start();
+        ServerConnectorFuture serverConnectorFuture = serverConnector.start();
 //        serverListener.setPayload(responseGenerator.response);
         serverConnectorFuture.setHttpConnectorListener(serverListener);
 
@@ -108,6 +110,23 @@ public class PrometheusPassThroughServer {
         return listenerConfiguration;
     }
 
+    private static void recordMetric(String metric_name, Collector.Type metric_type) {
+        recordedMetricsList.add(metric_name);
+    }
+
+    private static void writeMetricProperties(String metric_name, Collector.Type metric_type, String metric_help,
+                                              StringBuilder builder) {
+        if (!recordedMetricsList.contains(metric_name)) {
+            recordedMetricsList.add(metric_name);
+            builder.append("# HELP ").append(metric_name);
+            builder.append(PrometheusConstants.SPACE_STRING).append(metric_help);
+            builder.append(System.lineSeparator());
+            builder.append("# TYPE ").append(metric_name).append(PrometheusConstants.SPACE_STRING);
+            builder.append(PrometheusSinkUtil.getMetricTypeString(metric_type));
+            builder.append(System.lineSeparator());
+        }
+    }
+
     /**
      * Generates response for HTTP server from the received events Siddhi-Prometheus-sink passThrough mode.
      */
@@ -126,7 +145,7 @@ public class PrometheusPassThroughServer {
         void generateResponseBody(Map<String, Object> inputEvent) {
             validateAndOverrideMetricProperties(inputEvent);
             StringBuilder builder = new StringBuilder(response);
-            PassThroughMetricHolder.writeMetricProperties(metric_name, metric_type, metric_help, builder);
+            PrometheusPassThroughServer.writeMetricProperties(metric_name, metric_type, metric_help, builder);
             inputEvent.remove(PrometheusConstants.MAP_NAME);
             inputEvent.remove(PrometheusConstants.MAP_TYPE);
             inputEvent.remove(PrometheusConstants.MAP_HELP);
