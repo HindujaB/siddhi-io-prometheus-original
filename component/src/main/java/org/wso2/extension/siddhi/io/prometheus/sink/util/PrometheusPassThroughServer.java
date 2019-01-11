@@ -157,6 +157,11 @@ public class PrometheusPassThroughServer {
                 inputEvent.remove(valueAttribute);
             }
             builder.append(sampleName);
+            if (subType.equals(PrometheusConstants.SUBTYPE_COUNT) ||
+                    subType.equals(PrometheusConstants.SUBTYPE_SUM)) {
+                inputEvent.remove(PrometheusConstants.LE_KEY);
+                inputEvent.remove(PrometheusConstants.QUANTILE_KEY);
+            }
             if (inputEvent.size() > 0) {
                 builder.append("{");
                 for (Map.Entry<String, Object> entry : inputEvent.entrySet()) {
@@ -231,14 +236,8 @@ public class PrometheusPassThroughServer {
 
         private void validateAndOverrideMetricProperties(Map<String, Object> metricMap) {
             String metricType = null;
-            if (metricMap.containsKey(PrometheusConstants.MAP_NAME)) {
-                this.metricName = metricMap.get(PrometheusConstants.MAP_NAME).toString();
-            }
             if (metricMap.containsKey(PrometheusConstants.MAP_TYPE)) {
                 metricType = metricMap.get(PrometheusConstants.MAP_TYPE).toString();
-            }
-            if (metricMap.containsKey(PrometheusConstants.MAP_HELP)) {
-                this.metricHelp = metricMap.get(PrometheusConstants.MAP_HELP).toString();
             }
             if (metricType != null) {
                 if (!metricType.equalsIgnoreCase(PrometheusSinkUtil.getMetricTypeString(this.metricType))) {

@@ -350,16 +350,17 @@ public class PrometheusSink extends Sink {
                 PrometheusSinkUtil.serverURL(configReader));
         this.publishMode = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_PUBLISH_MODE,
                 PrometheusSinkUtil.publishMode(configReader));
-        this.metricType = PrometheusSinkUtil.assignMetricType(optionHolder.validateAndGetStaticValue(METRIC_TYPE),
-                streamID);
-        this.metricHelp = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_HELP,
-                HELP_STRING + metricType + SPACE_STRING + metricName).trim();
         this.buckets = optionHolder.validateAndGetStaticValue(PrometheusConstants.BUCKET_DEFINITION, EMPTY_STRING);
         this.quantiles = optionHolder.validateAndGetStaticValue(PrometheusConstants.QUANTILES_DEFINITION, EMPTY_STRING);
         this.attributes = outputstreamDefinition.getAttributeList()
                 .stream().map(Attribute::getName).collect(Collectors.toList());
         this.metricName = optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.METRIC_NAME, streamID.trim());
+        this.metricType = PrometheusSinkUtil.assignMetricType(optionHolder.validateAndGetStaticValue(METRIC_TYPE),
+                streamID);
+        this.metricHelp = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_HELP,
+                HELP_STRING + PrometheusSinkUtil.getMetricTypeString(metricType) + SPACE_STRING +
+                        metricName).trim();
         this.pushOperation = optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.PUSH_DEFINITION, PrometheusConstants.PUSH_ADD_OPERATION).trim();
         this.groupingKey = PrometheusSinkUtil.populateGroupingKey(optionHolder.validateAndGetStaticValue(
