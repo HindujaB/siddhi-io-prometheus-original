@@ -43,7 +43,6 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 public class PrometheusScraper implements Runnable {
     private static final Logger log = Logger.getLogger(PrometheusScraper.class);
     private String targetURL;
-    private double scrapeInterval;
     private double scrapeTimeout;
     private String scheme;
     private List<Header> headers;
@@ -54,21 +53,20 @@ public class PrometheusScraper implements Runnable {
     private List<String> lastValidSamples;
     private PrometheusMetricAnalyser metricAnalyser;
     private boolean isPaused = false;
-    private List<String> metricSamples;
+    private List<String> metricSamples = new ArrayList<>();
     private SourceEventListener sourceEventListener;
 
-    PrometheusScraper(String targetURL, String scheme, double scrapeInterval, double scrapeTimeout,
+    PrometheusScraper(String targetURL, String scheme, double scrapeTimeout,
                       List<Header> headers, SourceEventListener sourceEventListener) {
         this.targetURL = targetURL;
         this.scheme = scheme;
-        this.scrapeInterval = scrapeInterval;
         this.scrapeTimeout = scrapeTimeout;
         this.headers = headers;
         this.sourceEventListener = sourceEventListener;
     }
 
     void setMetricProperties(String metricName, MetricType metricType, String metricJob,
-                             String metricInstance, Map<String, String> metricGroupingKey) {
+                                                 String metricInstance, Map<String, String> metricGroupingKey) {
         this.metricAnalyser = new PrometheusMetricAnalyser(metricName, metricType, sourceEventListener);
         metricAnalyser.metricJob = metricJob;
         metricAnalyser.metricInstance = metricInstance;
@@ -108,20 +106,22 @@ public class PrometheusScraper implements Runnable {
         HttpWsConnectorFactory httpConnectorFactory = new DefaultHttpWsConnectorFactory();
         HttpClientConnector httpClientConnector = httpConnectorFactory.createHttpClientConnector(new HashMap<>(),
                 senderConfiguration);
-        metricSamples = sendRequest(httpClientConnector, urlProperties, headers);
-
+        List<String> responseMetrics = sendRequest(httpClientConnector, urlProperties, headers);
         String errorMessage = PrometheusConstants.EMPTY_STRING;
-        if (metricSamples == null) {
+        if (responseMetrics == null) {
             errorMessage = "Error occurred while retrieving metrics. Error : Response is null.";
-        } else if (metricSamples.isEmpty()) {
+        } else if (responseMetrics.isEmpty()) {
             errorMessage = "The target at" + targetURL + "returns an empty response";
         }
         if (!errorMessage.equals(PrometheusConstants.EMPTY_STRING)) {
             log.error(errorMessage);
             throw new SiddhiAppRuntimeException(errorMessage);
         } else {
-            metricAnalyser.analyseMetrics(metricSamples, targetURL);
-            this.lastValidSamples = metricAnalyser.getLastValidSamples();
+            if(!responseMetrics.equals(metricSamples)) {
+                metricSamples = responseMetrics;
+                metricAnalyser.analyseMetrics(metricSamples, targetURL);
+                this.lastValidSamples = metricAnalyser.getLastValidSamples();
+            }
         }
     }
 
@@ -206,11 +206,6 @@ public class PrometheusScraper implements Runnable {
         if (!isPaused) {
             try {
                 retrieveMetricSamples();
-                try {
-                    Thread.sleep((long) scrapeInterval * 1000);
-                } catch (InterruptedException e) {
-                    log.error("Error while scraping from " + targetURL + ".", e);
-                }
             } catch (IOException e) {
                 throw new PrometheusSourceException(e);
             }

@@ -479,7 +479,6 @@ public class PipelineTestcase {
             public void receive(Event[] events) {
                 for (Event event : events) {
                     currentEvent = event;
-                    log.info(event);
                     eventArrived.set(true);
                     receivedEvents.add(event.getData());
                 }
@@ -488,7 +487,7 @@ public class PipelineTestcase {
 
         siddhiAppRuntime.addCallback("SourceMapTestStream", insertionStreamCallback);
         siddhiAppRuntime.start();
-        Thread.sleep(20000);
+        Thread.sleep(30000);
         siddhiAppRuntime.shutdown();
     }
 }

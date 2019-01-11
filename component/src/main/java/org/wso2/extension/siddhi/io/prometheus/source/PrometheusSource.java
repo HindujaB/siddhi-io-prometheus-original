@@ -422,8 +422,8 @@ public class PrometheusSource extends Source {
                 configReader.readConfig(PrometheusConstants.REQUEST_HEADERS_CONFIGURATION, EMPTY_STRING));
 
         List<Header> headerList = PrometheusSourceUtil.getHeaders(headers);
-        this.prometheusScraper = new PrometheusScraper(targetURL, scheme, scrapeInterval, scrapeTimeout,
-                headerList, sourceEventListener);
+        this.prometheusScraper = new PrometheusScraper(targetURL, scheme, scrapeTimeout, headerList,
+                sourceEventListener);
         if ((EMPTY_STRING.equals(userName) ^ EMPTY_STRING.equals(password))) {
             throw new SiddhiAppCreationException("Please provide user name and password in " +
                     PrometheusConstants.PROMETHEUS_SOURCE + " associated with the stream " + streamName + " in " +
@@ -486,8 +486,7 @@ public class PrometheusSource extends Source {
      */
     @Override
     public void connect(ConnectionCallback connectionCallback) throws ConnectionUnavailableException {
-        executorService.schedule(prometheusScraper, (long) scrapeInterval, TimeUnit.SECONDS);
-//        executorService.execute(prometheusScraper);
+        executorService.scheduleWithFixedDelay(prometheusScraper, 0, (long) scrapeInterval,TimeUnit.SECONDS);
     }
 
     /**
