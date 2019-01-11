@@ -59,16 +59,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  * honor_labels: true
  * static_configs:
  * - targets: ['localhost:9080']
- *
+ * <p>
  * - job_name: 'pushgateway'
  * honor_labels: true
  * static_configs:
  * - targets: ['localhost:9091']
- *
+ * <p>
  * - job_name: 'configurationTest'
- *   honor_labels: true
- *   static_configs:
- *   - targets: ['localhost:9096']
+ * honor_labels: true
+ * static_configs:
+ * - targets: ['localhost:9096']
  */
 public class PrometheusSinkTest {
 
@@ -95,7 +95,7 @@ public class PrometheusSinkTest {
         passThroughServerURL = "http://" + host + ":" + passThroughServerPort;
         prometheusServerURL = "http://" + host + ":" + prometheusPort + "/api/v1/query?query=";
         executorService = Executors.newFixedThreadPool(5);
-        log.info("== Prometheus connection tests started ==");
+        log.info("== Prometheus sink tests started ==");
     }
 
     @AfterClass
@@ -104,7 +104,7 @@ public class PrometheusSinkTest {
             executorService.shutdown();
         }
         Thread.sleep(100);
-        log.info("== Prometheus connection tests completed ==");
+        log.info("== Prometheus sink tests completed ==");
     }
 
     @BeforeMethod
@@ -113,6 +113,7 @@ public class PrometheusSinkTest {
         eventArrived.set(false);
         createdEvents.clear();
     }
+
     private void getAndValidateMetrics(String metricName) {
 
         String requestURL = prometheusServerURL + metricName;
@@ -396,17 +397,17 @@ public class PrometheusSinkTest {
         siddhiAppRuntime.addCallback("TestStream", streamCallback);
         siddhiAppRuntime.start();
 
-        Object[] data1 = new Object[] {"test_metrics", "gauge", "help string", "WSO2", "78.8", "null",
-                100 };
-        Object[] data2 = new Object[] {"test_metrics", "gauge", "help string", "IBM", "65.32", "null",
-                125 };
+        Object[] data1 = new Object[]{"test_metrics", "gauge", "help string", "WSO2", "78.8", "null",
+                100};
+        Object[] data2 = new Object[]{"test_metrics", "gauge", "help string", "IBM", "65.32", "null",
+                125};
 
         List<Object[]> inputEvents = new ArrayList<>();
         Event inputEvent1 = new Event();
         inputEvent1.setData(data1);
         Event inputEvent2 = new Event();
         inputEvent2.setData(data2);
-        Event[] eventArray = new Event[] {inputEvent1, inputEvent2};
+        Event[] eventArray = new Event[]{inputEvent1, inputEvent2};
         inputHandler.send(eventArray);
         Thread.sleep(2000);
         Object[] event1 = new Object[]{"WSO2", 100, 78.8};

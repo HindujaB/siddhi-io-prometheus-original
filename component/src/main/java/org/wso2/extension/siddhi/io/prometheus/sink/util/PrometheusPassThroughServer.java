@@ -54,9 +54,13 @@ public class PrometheusPassThroughServer {
         serverListener = new PrometheusHTTPServerListener();
     }
 
-    public void initiateResponseGenerator(String metric_name, Collector.Type metric_type, String metric_help) {
+    public void initiateResponseGenerator(String metricName, Collector.Type metricType, String metricHelp,
+                                          String valueAttribute) {
         responseGenerator = new ResponseGenerator();
-        responseGenerator.setMetricProperties(metric_name, metric_type, metric_help);
+        responseGenerator.metricName = metricName;
+        responseGenerator.metricHelp = metricHelp;
+        responseGenerator.metricType = metricType;
+        responseGenerator.valueAttribute = valueAttribute;
     }
 
     public void start() {
@@ -102,7 +106,8 @@ public class PrometheusPassThroughServer {
             listenerConfiguration.setScheme(protocol);
             listenerConfiguration.setVersion(String.valueOf(Constants.HTTP_2_0));
 //                    listenerConfiguration.setMessageProcessorId(sourceConfigReader
-//                            .readConfig(HttpConstants.MESSAGE_PROCESSOR_ID, HttpConstants.MESSAGE_PROCESSOR_ID_VALUE));
+//                            .readConfig(HttpConstants.MESSAGE_PROCESSOR_ID,
+//                              HttpConstants.MESSAGE_PROCESSOR_ID_VALUE));
         } else {
             log.error("Invalid scheme found in the serverURL for passThrough mode of Prometheus sink.");
         }
@@ -110,19 +115,15 @@ public class PrometheusPassThroughServer {
         return listenerConfiguration;
     }
 
-    private static void recordMetric(String metric_name, Collector.Type metric_type) {
-        recordedMetricsList.add(metric_name);
-    }
-
-    private static void writeMetricProperties(String metric_name, Collector.Type metric_type, String metric_help,
+    private static void writeMetricProperties(String metricName, Collector.Type metricType, String metricHelp,
                                               StringBuilder builder) {
-        if (!recordedMetricsList.contains(metric_name)) {
-            recordedMetricsList.add(metric_name);
-            builder.append("# HELP ").append(metric_name);
-            builder.append(PrometheusConstants.SPACE_STRING).append(metric_help);
+        if (!recordedMetricsList.contains(metricName)) {
+            recordedMetricsList.add(metricName);
+            builder.append("# HELP ").append(metricName);
+            builder.append(PrometheusConstants.SPACE_STRING).append(metricHelp);
             builder.append(System.lineSeparator());
-            builder.append("# TYPE ").append(metric_name).append(PrometheusConstants.SPACE_STRING);
-            builder.append(PrometheusSinkUtil.getMetricTypeString(metric_type));
+            builder.append("# TYPE ").append(metricName).append(PrometheusConstants.SPACE_STRING);
+            builder.append(PrometheusSinkUtil.getMetricTypeString(metricType));
             builder.append(System.lineSeparator());
         }
     }
@@ -131,29 +132,30 @@ public class PrometheusPassThroughServer {
      * Generates response for HTTP server from the received events Siddhi-Prometheus-sink passThrough mode.
      */
     static class ResponseGenerator {
-        private String metric_name;
-        private Collector.Type metric_type;
-        private String metric_help;
+        private String metricName;
+        private Collector.Type metricType;
+        private String metricHelp;
         private String response = PrometheusConstants.EMPTY_STRING;
-
-        void setMetricProperties(String metric_name, Collector.Type metric_type, String metric_help) {
-            this.metric_name = metric_name;
-            this.metric_type = metric_type;
-            this.metric_help = metric_help;
-        }
+        private String valueAttribute;
 
         void generateResponseBody(Map<String, Object> inputEvent) {
             validateAndOverrideMetricProperties(inputEvent);
             StringBuilder builder = new StringBuilder(response);
-            PrometheusPassThroughServer.writeMetricProperties(metric_name, metric_type, metric_help, builder);
+            PrometheusPassThroughServer.writeMetricProperties(metricName, metricType, metricHelp, builder);
             inputEvent.remove(PrometheusConstants.MAP_NAME);
             inputEvent.remove(PrometheusConstants.MAP_TYPE);
             inputEvent.remove(PrometheusConstants.MAP_HELP);
-            String subType = inputEvent.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
-            inputEvent.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+            String subType = PrometheusConstants.EMPTY_STRING;
+            if (inputEvent.containsKey(PrometheusConstants.MAP_SAMPLE_SUBTYPE)) {
+                subType = inputEvent.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
+                inputEvent.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+            }
             String sampleName = setSampleName(subType);
-            double value = parseDouble(inputEvent.get(PrometheusConstants.MAP_SAMPLE_VALUE).toString());
-            inputEvent.remove(PrometheusConstants.MAP_SAMPLE_VALUE);
+            double value = 0.0;
+            if (inputEvent.containsKey(valueAttribute)) {
+                value = parseDouble(inputEvent.get(valueAttribute).toString());
+                inputEvent.remove(valueAttribute);
+            }
             builder.append(sampleName);
             if (inputEvent.size() > 0) {
                 builder.append("{");
@@ -171,10 +173,10 @@ public class PrometheusPassThroughServer {
         }
 
         private String setSampleName(String subType) {
-            String sampleName = metric_name;
+            String sampleName = metricName;
             switch (subType) {
                 case PrometheusConstants.SUBTYPE_NULL: {
-                    sampleName = metric_name;
+                    sampleName = metricName;
                     break;
                 }
                 case PrometheusConstants.SUBTYPE_BUCKET: {
@@ -228,22 +230,24 @@ public class PrometheusPassThroughServer {
         }
 
         private void validateAndOverrideMetricProperties(Map<String, Object> metricMap) {
-            String metricName = metricMap.get(PrometheusConstants.MAP_NAME).toString();
-            String metricType = metricMap.get(PrometheusConstants.MAP_TYPE).toString();
-            String metricHelp = metricMap.get(PrometheusConstants.MAP_HELP).toString();
-            if (metricName != null) {
-                metric_name = metricName;
+            String metricType = null;
+            if (metricMap.containsKey(PrometheusConstants.MAP_NAME)) {
+                this.metricName = metricMap.get(PrometheusConstants.MAP_NAME).toString();
+            }
+            if (metricMap.containsKey(PrometheusConstants.MAP_TYPE)) {
+                metricType = metricMap.get(PrometheusConstants.MAP_TYPE).toString();
+            }
+            if (metricMap.containsKey(PrometheusConstants.MAP_HELP)) {
+                this.metricHelp = metricMap.get(PrometheusConstants.MAP_HELP).toString();
             }
             if (metricType != null) {
-                if (!metricType.equalsIgnoreCase(PrometheusSinkUtil.getMetricTypeString(metric_type))) {
-                    log.error("The received metric type does not match with the stream definition of Prometheus sink " +
-                            "in passThrough publish mode.", new SiddhiAppRuntimeException());
+                if (!metricType.equalsIgnoreCase(PrometheusSinkUtil.getMetricTypeString(this.metricType))) {
+                    log.error("The received metric type does not match with the stream definition of " +
+                            "Prometheus sink in passThrough publish mode.", new SiddhiAppRuntimeException());
                 }
             }
-            if (metricHelp != null) {
-                metric_help = metricHelp;
-            }
         }
+
     }
 }
 

@@ -64,7 +64,7 @@ public class PipelineTestcase {
         serverURL = "http://" + host + ":" + passThroughServerPort + "/metrics";
     }
 
-    private void initializeMetrics(){
+    private void initializeMetrics() {
         CollectorRegistry registry = new CollectorRegistry();
         buildMetrics(registry);
 //        Map<String,String> groupingKey = new HashMap<>();
@@ -189,7 +189,7 @@ public class PipelineTestcase {
             }
         };
         SiddhiAppRuntime siddhiAppRuntime =
-                siddhiManager.createSiddhiAppRuntime(siddhiApp +  sourceStream + outputStream1 + query1);
+                siddhiManager.createSiddhiAppRuntime(siddhiApp + sourceStream + outputStream1 + query1);
         siddhiAppRuntime.addCallback("TestStream", streamCallback);
         StreamCallback insertionStreamCallback = new StreamCallback() {
             @Override
@@ -261,7 +261,7 @@ public class PipelineTestcase {
             }
         };
         SiddhiAppRuntime siddhiAppRuntime =
-                siddhiManager.createSiddhiAppRuntime(siddhiApp +  sourceStream + outputStream1 + query1);
+                siddhiManager.createSiddhiAppRuntime(siddhiApp + sourceStream + outputStream1 + query1);
         siddhiAppRuntime.addCallback("TestStream", streamCallback);
         StreamCallback insertionStreamCallback = new StreamCallback() {
             @Override
@@ -333,7 +333,7 @@ public class PipelineTestcase {
             }
         };
         SiddhiAppRuntime siddhiAppRuntime =
-                siddhiManager.createSiddhiAppRuntime(siddhiApp +  sourceStream + outputStream1 + query1);
+                siddhiManager.createSiddhiAppRuntime(siddhiApp + sourceStream + outputStream1 + query1);
         siddhiAppRuntime.addCallback("TestStream", streamCallback);
         StreamCallback insertionStreamCallback = new StreamCallback() {
             @Override
@@ -405,8 +405,75 @@ public class PipelineTestcase {
             }
         };
         SiddhiAppRuntime siddhiAppRuntime =
-                siddhiManager.createSiddhiAppRuntime(siddhiApp +  sourceStream + outputStream1 + query1);
+                siddhiManager.createSiddhiAppRuntime(siddhiApp + sourceStream + outputStream1 + query1);
         siddhiAppRuntime.addCallback("TestStream", streamCallback);
+        StreamCallback insertionStreamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    currentEvent = event;
+                    log.info(event);
+                    eventArrived.set(true);
+                    receivedEvents.add(event.getData());
+                }
+            }
+        };
+
+        siddhiAppRuntime.addCallback("SourceMapTestStream", insertionStreamCallback);
+        siddhiAppRuntime.start();
+        Thread.sleep(20000);
+        siddhiAppRuntime.shutdown();
+    }
+
+    /**
+     * test for Prometheus source-sink pipelining with summary metric.
+     *
+     * @throws InterruptedException interrupted exception
+     */
+    @Test(sequential = true)
+    public void prometheusSourceTest5() throws InterruptedException {
+        initializeMetrics();
+        SiddhiManager siddhiManager = new SiddhiManager();
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Source test for Prometheus source-sink pipelining with summary metric");
+        log.info("----------------------------------------------------------------------------------");
+        String app = "@App:name(\"TestSiddhiApp3\")\n" +
+                "@App:description(\"Description of the plan\")\n" +
+                "\n" +
+                "\n" +
+                "@source(type = 'prometheus', target.url = 'http://localhost:9080', scheme = 'http', " +
+                "scrape.interval = '3', scrape.timeout = '2', metric.type = 'histogram', " +
+                "metric.name = 'test_histogram', \n" +
+                "\t@map(type = 'keyvalue'))\n" +
+                "Define stream SourceMapTestStream (metric_name String, metric_type String, help String, name String," +
+                " age String, subtype String, le String, value double);\n" +
+                " \n" +
+                "@sink(type='prometheus' ,publish.mode = 'passThrough', server.url= 'http://localhost:9096/metrics'," +
+                " metric.type='histogram',value.attribute='marks', metric.name='test_histogram_reproduced', @map" +
+                "(type='keyvalue'))\n" +
+                "define stream SinkStream(metric_name String, metric_type String, help String, name String, age " +
+                "String, subtype String, le String, marks double);\n" +
+                " \n" +
+                " \n" +
+                "@info(name = 'query') \n" +
+                "from SourceMapTestStream\n" +
+                "select metric_name, metric_type, help, name, age, subtype,le,value as marks   \n" +
+                "insert into SinkStream;";
+
+
+        StreamCallback streamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    eventCount.getAndIncrement();
+                    log.info(event);
+                    eventArrived.set(true);
+                }
+            }
+        };
+        SiddhiAppRuntime siddhiAppRuntime =
+                siddhiManager.createSiddhiAppRuntime(app);
+        siddhiAppRuntime.addCallback("SinkStream", streamCallback);
         StreamCallback insertionStreamCallback = new StreamCallback() {
             @Override
             public void receive(Event[] events) {

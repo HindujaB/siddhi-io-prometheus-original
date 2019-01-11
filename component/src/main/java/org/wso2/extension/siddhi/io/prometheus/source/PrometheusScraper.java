@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -125,8 +126,8 @@ public class PrometheusScraper implements Runnable {
     }
 
     private static List<String> sendRequest(HttpClientConnector clientConnector, Map<String, String> urlProperties,
-                                            List<Header> headerList) {
-        List<String> responsePayload;
+                                            List<Header> headerList) throws IOException {
+        List<String> responsePayload = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
 
         HttpMethod httpReqMethod = new HttpMethod(PrometheusConstants.DEFAULT_HTTP_METHOD);
@@ -138,28 +139,28 @@ public class PrometheusScraper implements Runnable {
 
         PrometheusHTTPClientListener httpListener = new PrometheusHTTPClientListener(latch);
         httpResponseFuture.setHttpConnectorListener(httpListener);
+        BufferedReader bufferedReader = null;
         try {
-            latch.await(30,TimeUnit.SECONDS);
+            if (latch.await(30, TimeUnit.SECONDS)) {
+                HTTPCarbonMessage response = httpListener.getHttpResponseMessage();
+                bufferedReader = new BufferedReader(new InputStreamReader(
+                        new HttpMessageDataStreamer(response).getInputStream(), Charset.defaultCharset()));
+                int statusCode = response.getNettyHttpResponse().status().code();
+                if (statusCode == 200) {
+                    responsePayload = bufferedReader.lines().collect(Collectors.toList());
+                } else {
+                    String errorMessage = "Error occurred while retrieving metrics. HTTP error code: " +
+                            statusCode;
+                    log.error(errorMessage + " " + response.getNettyHttpResponse().status().toString());
+                    throw new SiddhiAppRuntimeException(errorMessage);
+                }
+            }
         } catch (InterruptedException e) {
             log.debug("Thread waiting time-out issue: " + e);
-        }
-
-        HTTPCarbonMessage response = httpListener.getHttpResponseMessage();
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
-                new HttpMessageDataStreamer(response).getInputStream(), Charset.defaultCharset()));
-        int statusCode = response.getNettyHttpResponse().status().code();
-        if (statusCode == 200) {
-            responsePayload = bufferedReader.lines().collect(Collectors.toList());
-//            try {
-//                streamer.getInputStream().close();
-//            } catch (IOException e) {
-//                log.error("Error while closing the stream " + e);
-//            }
-        } else {
-            String errorMessage = "Error occurred while retrieving metrics. HTTP error code: " +
-                    statusCode;
-            log.error(errorMessage + " " + response.getNettyHttpResponse().status().toString());
-            throw new SiddhiAppRuntimeException(errorMessage);
+        } finally {
+            if (bufferedReader != null) {
+                bufferedReader.close();
+            }
         }
         return responsePayload;
     }
@@ -233,10 +234,10 @@ public class PrometheusScraper implements Runnable {
     }
 
     void clearPrometheusScraper() {
-        if(metricSamples != null) {
+        if (metricSamples != null) {
             metricSamples.clear();
         }
-        if(lastValidSamples != null) {
+        if (lastValidSamples != null) {
             lastValidSamples.clear();
         }
     }

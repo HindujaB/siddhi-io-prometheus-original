@@ -40,7 +40,7 @@ public class ValidationTestcase {
 
     @BeforeClass
     public static void startTest() {
-        log.info("== Prometheus connection tests started ==");
+        log.info("== Prometheus sink validation tests started ==");
         pushgatewayURL = "http://localhost:9095";
         serverURL = "http://localhost:9096";
         buckets = "2, 4, 6, 8";
@@ -50,7 +50,7 @@ public class ValidationTestcase {
     @AfterClass
     public static void shutdown() throws InterruptedException {
         Thread.sleep(100);
-        log.info("== Prometheus connection tests completed ==");
+        log.info("== Prometheus sink validation tests completed ==");
     }
 
 

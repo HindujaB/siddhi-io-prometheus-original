@@ -44,7 +44,7 @@ public class PrometheusSinkUtil {
      * Split values by ',' for buckets and quantiles definition.
      *
      * @param inputString string input from sink definition
-     * @param streamID streamId of the stream for error message
+     * @param streamID    streamId of the stream for error message
      * @return value list as double array
      */
     public static double[] convertToDoubleArray(String inputString, String streamID) {
@@ -67,7 +67,7 @@ public class PrometheusSinkUtil {
      * Validate quantile values to be in between 0 and 1 for summary metric type.
      *
      * @param quantiles quantile values as double array
-     * @param streamID streamId of the stream for error message
+     * @param streamID  streamId of the stream for error message
      */
     public static boolean validateQuantiles(double[] quantiles, String streamID) {
         for (double value : quantiles) {
@@ -84,7 +84,7 @@ public class PrometheusSinkUtil {
      * Assign metric types according to sink definition.
      *
      * @param metricTypeString value of metric type parameter from sink definition
-     * @param streamID streamId of the stream for error message
+     * @param streamID         streamId of the stream for error message
      * @return Metric type from Prometheus Collector
      */
     public static Collector.Type assignMetricType(String metricTypeString, String streamID) {
@@ -118,7 +118,7 @@ public class PrometheusSinkUtil {
      * Retrieve grouping key of a metric as key-value pair.
      *
      * @param groupingKeyString grouping key parameter as string
-     * @param streamID streamId of the stream for error message
+     * @param streamID          streamId of the stream for error message
      * @return key-value pairs of the grouping key as java string map
      */
     public static Map<String, String> populateGroupingKey(String groupingKeyString, String streamID) {
@@ -165,52 +165,56 @@ public class PrometheusSinkUtil {
     /**
      * user can give custom job name if user did not define them. Then system will read
      * the default values which is in the deployment yaml.
-     * @param sinkConfigReader configuration reader for sink.
      *
+     * @param sinkConfigReader configuration reader for sink.
      * @return default job name.
      */
     public static String jobName(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.JOB_NAME_CONFIGURATION,
                 PrometheusConstants.DEFAULT_JOB_NAME);
     }
+
     /**
      * user can give custom URL for Prometheus push gateway if user did not give them inside sink definition. Then
      * system will read the default values which is in the deployment yaml.
-     * @param sinkConfigReader configuration reader for sink.
      *
+     * @param sinkConfigReader configuration reader for sink.
      * @return default push gateway URL.
      */
     public static String pushURL(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.PUSH_URL_CONFIGURATION,
                 PrometheusConstants.DEFAULT_PUSH_URL);
     }
+
     /**
      * user can give custom server URL if user did not give them inside sink definition. Then system will read
      * the default values which is in the deployment yaml.
-     * @param sinkConfigReader configuration reader for sink.
      *
+     * @param sinkConfigReader configuration reader for sink.
      * @return default server URL.
      */
     public static String serverURL(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.SERVER_URL_CONFIGURATION,
                 PrometheusConstants.DEFAULT_SERVER_URL);
     }
+
     /**
      * user can give custom publish mode if the user did not give them inside sink definition then system read
      * the default values which is in the deployment yaml.
-     * @param sinkConfigReader configuration reader for sink.
      *
+     * @param sinkConfigReader configuration reader for sink.
      * @return default publish mode.
      */
     public static String publishMode(ConfigReader sinkConfigReader) {
         return sinkConfigReader.readConfig(PrometheusConstants.PUBLISH_MODE_CONFIGURATION,
                 PrometheusConstants.DEFAULT_PUBLISH_MODE);
     }
+
     /**
      * user can give custom grouping key in key-value pairs, if user did not give them inside sink definition.
      * Then system will read the default values which is in the deployment yaml.
-     * @param sinkConfigReader configuration reader for sink.
      *
+     * @param sinkConfigReader configuration reader for sink.
      * @return default grouping key.
      */
     public static String groupinKey(ConfigReader sinkConfigReader) {
@@ -220,6 +224,7 @@ public class PrometheusSinkUtil {
 
     /**
      * To retrieve the name of the metric type in String from {@code Collector.Type}
+     *
      * @param metricType metric type from {@code Collector.Type}
      * @return name of the metric type
      */
@@ -239,7 +244,7 @@ public class PrometheusSinkUtil {
             }
             default: {
                 return null;
-               // default will never be executed
+                // default will never be executed
             }
         }
     }

@@ -473,8 +473,9 @@ public class PrometheusSink extends Sink {
                                 //default will never be executed
                         }
                     } catch (IOException e) {
-                        log.error("Unable to establish connection for Prometheus sink associated with stream \'" +
-                                getStreamDefinition().getId() + "\' at " + pushURL, new ConnectionUnavailableException(e));
+                        log.error("Unable to establish connection for Prometheus sink associated with " +
+                                        "stream \'" + getStreamDefinition().getId() + "\' at " + pushURL,
+                                new ConnectionUnavailableException(e));
                     }
                 }
             }
@@ -525,7 +526,7 @@ public class PrometheusSink extends Sink {
 
     private void initiatePassThroughServer(URL target) {
         passThroughServer = new PrometheusPassThroughServer(target);
-        passThroughServer.initiateResponseGenerator(metricName, metricType, metricHelp);
+        passThroughServer.initiateResponseGenerator(metricName, metricType, metricHelp, valueAttribute);
         passThroughServer.start();
     }
 

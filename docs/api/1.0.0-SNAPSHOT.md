@@ -31,7 +31,7 @@
     </tr>
     <tr>
         <td style="vertical-align: top">publish.mode</td>
-        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the mode of exposing metrics to Prometheus server.The mode can be either 'server' or 'pushgateway'.</td>
+        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the mode of exposing metrics to Prometheus server.The possible publish modes are 'server', 'pushgateway' and 'passThrough'.</td>
         <td style="vertical-align: top">server</td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
@@ -47,7 +47,7 @@
     </tr>
     <tr>
         <td style="vertical-align: top">server.url</td>
-        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the url where the http server will be initiated to expose metrics. This url must be previously defined in prometheus configuration file as a target. By default, the http server will be initiated at'http://localhost:9080'</td>
+        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the url where the http server will be initiated to expose metrics for 'server', 'passThrough' publish modes. This url must be previously defined in prometheus configuration file as a target. By default, the http server will be initiated at 'http://localhost:9080'.</td>
         <td style="vertical-align: top">http://localhost:9080</td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">Yes</td>
@@ -161,7 +161,7 @@
     </tr>
     <tr>
         <td style="vertical-align: top">groupingKey</td>
-        <td style="vertical-align: top; word-wrap: break-word">This property configures the grouping key of created metrics in key-value pairs. Grouping key is used only in pushGateway mode in order to distinguish the metrics from already existing metrics under same job. The expected format of the grouping key is as follows: "'key1:value1','key2:value2'"</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property configures the grouping key of created metrics in key-value pairs. Grouping key is used only in pushGateway mode in order to distinguish the metrics from already existing metrics under same job. The expected format of the grouping key is as follows: "'key1:value1','key2:value2'" .</td>
         <td style="vertical-align: top">null</td>
         <td style="vertical-align: top">Any key value pairs in the supported format</td>
     </tr>
@@ -180,6 +180,16 @@ define stream FooCountStream (Name String, quantity int, value int);
 
 <span id="example-2" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 2</span>
 ```
+@sink(type='prometheus',job='inventoryLevel', server.url ='http://localhost:9081',
+ publish.mode='passThrough', metric.type='counter', 
+metric.help= 'Current level of inventory', @map(type='keyvalue'))
+define stream InventoryStream (metric_name String, metric_type String, help String, Name String, subtype String, value int);
+
+```
+<p style="word-wrap: break-word"> In the above example, the Prometheus-sink will expose the received events from Prometheus-source through an http server at the target url with the Stream name and defined attributes as labels. <br></p>
+
+<span id="example-3" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 3</span>
+```
 @sink(type='prometheus',job='inventoryLevel', push.url='http://localhost:9080',
  publish.mode='pushGateway', metric.type='gauge',
  metric.help= 'Current level of inventory', @map(type='keyvalue'))
@@ -192,17 +202,234 @@ define stream InventoryLevelStream (Name String, value int);
 
 ### prometheus *<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#source">(Source)</a>*
 
-<p style="word-wrap: break-word"> </p>
+<p style="word-wrap: break-word">The source consumes events as exported Prometheus metrics from the specified url through <br>http requests. According to the source configuration, it analyses metrics from the text response <br>and send them as Siddhi events with key-value mapping. Prometheus source supports HTTP and HTTPS <br>schemes for scraping metrics through http requests. The user can retrieve metrics of types <br>counter, gauge, histogram and summary. The required Prometheus metric can be specified <br>inside the source configuration using the metric name, job name, instance and grouping keys.<br>&nbsp;Since the source supports key-value mapping for histogram and summary metric types, <br>It is advised that the exported metrics must not contain label names starts with "bucket_","quantile_", "sum" or "count".</p>
 
 <span id="syntax" class="md-typeset" style="display: block; font-weight: bold;">Syntax</span>
 ```
-@source(type="prometheus", @map(...)))
+@source(type="prometheus", target.url="<STRING>", scrape.interval="<INT>", scrape.timeout="<INT>", scheme="<STRING>", metric.name="<STRING>", metric.type="<STRING>", username="<STRING>", password="<STRING>", client.truststore.file="<STRING>", client.truststore.password="<STRING>", headers="<STRING>", job="<STRING>", instance="<STRING>", grouping.key="<STRING>", labels="<STRING>", @map(...)))
 ```
+
+<span id="query-parameters" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">QUERY PARAMETERS</span>
+<table>
+    <tr>
+        <th>Name</th>
+        <th style="min-width: 20em">Description</th>
+        <th>Default Value</th>
+        <th>Possible Data Types</th>
+        <th>Optional</th>
+        <th>Dynamic</th>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">target.url</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the target url where the Prometheus metrics are exported in text format.</td>
+        <td style="vertical-align: top"></td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">No</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">scrape.interval</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the time interval that the source should make an HTTP scrape request to the  provided target url in seconds. By default, the source will scrape metrics within 60 seconds interval.</td>
+        <td style="vertical-align: top">60</td>
+        <td style="vertical-align: top">INT</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">scrape.timeout</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property is the time duration in seconds for a scrape request to get timed-out if the server at the url does not respond. By default, the property takes 10 seconds to time-out. </td>
+        <td style="vertical-align: top">10</td>
+        <td style="vertical-align: top">INT</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">scheme</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the scheme of the target URL.<br>&nbsp;The supported schemes are HTTP and HTTPS.</td>
+        <td style="vertical-align: top">HTTP</td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">metric.name</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the name of the metrics that is to be fetched. By default, metric name will be set according to the name of the stream. The metric name must match the regex format [a-zA-Z_:][a-zA-Z0-9_:]* </td>
+        <td style="vertical-align: top">Stream name</td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">metric.type</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the type of the Prometheus metric that is required. needed to be fetched. <br>&nbsp;The supported metric types are 'counter', 'gauge', 'histogram' and 'summary'. </td>
+        <td style="vertical-align: top"></td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">No</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">username</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the username that has to be added in the authorization header of the HTTP request, if basic authentication is enabled at the target. It is required to specify both username and password to enable basic authentication. If one of the parameter is not given by user then an error is logged in the console.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">password</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the password that has to be added in the authorization header of the request, if basic authentication is enabled at the target. It is required to specify both username and password to enable basic authentication. If one of the parameter is not given by user then an error is logged in the console.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">client.truststore.file</td>
+        <td style="vertical-align: top; word-wrap: break-word">The file path to the location of truststore that the client needs to send for https requests through 'https' protocol.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">client.truststore.password</td>
+        <td style="vertical-align: top; word-wrap: break-word"> The password for client-truststore to send https requests. A custom password can be specified if required. </td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">headers</td>
+        <td style="vertical-align: top; word-wrap: break-word">headers that should be included as HTTP request headers in the request. The format of the supported input is as follows, <br>'header1:value1','header2:value2'</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">job</td>
+        <td style="vertical-align: top; word-wrap: break-word"> This property defines the job name of the exported Prometheus metrics that has to be fetched.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">instance</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property defines the instance of the exported Prometheus metrics that has to be fetched.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">grouping.key</td>
+        <td style="vertical-align: top; word-wrap: break-word">This parameter specifies the grouping key of the required metrics in key-value pairs. Grouping key is used if the metrics are exported by Prometheus pushGateway in order to distinguish the metrics from already existing metrics. The expected format of the grouping key is as follows: <br>'key1:value1','key2:value2'</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">labels</td>
+        <td style="vertical-align: top; word-wrap: break-word"> This parameter specifies the Prometheus Metric labels and values that are needed to identify the required metrics<br>The format of the supported input is as follows,<br>'label1:value1','label2:value2'. </td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+</table>
+
+<span id="system-parameters" class="md-typeset" style="display: block; font-weight: bold;">System Parameters</span>
+<table>
+    <tr>
+        <th>Name</th>
+        <th style="min-width: 20em">Description</th>
+        <th>Default Value</th>
+        <th>Possible Parameters</th>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">targetURL</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property configure the URL of the target where the Prometheus metrics are exported in text format.</td>
+        <td style="vertical-align: top">'http://localhost:9080/metrics'</td>
+        <td style="vertical-align: top">Any valid URL which exports Prometheus metrics in text format</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">scrapeInterval</td>
+        <td style="vertical-align: top; word-wrap: break-word">The default time interval in seconds for the Prometheus source to make HTTP requests to the target URL.</td>
+        <td style="vertical-align: top">60</td>
+        <td style="vertical-align: top">Any integer value</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">scrapeTimeout</td>
+        <td style="vertical-align: top; word-wrap: break-word">This default time duration for an HTTP request to time-out if the server at the URL does not respond. (in seconds) </td>
+        <td style="vertical-align: top">10</td>
+        <td style="vertical-align: top">Any integer value</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">scheme</td>
+        <td style="vertical-align: top; word-wrap: break-word">The scheme of the target for Prometheus source to make HTTP requests. The supported schemes are HTTP and HTTPS.</td>
+        <td style="vertical-align: top">HTTP</td>
+        <td style="vertical-align: top">HTTP or HTTPS</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">username</td>
+        <td style="vertical-align: top; word-wrap: break-word">The username that has to be added in the authorization header of the HTTP request, if basic authentication is enabled at the target. It is required to specify both username and password to enable basic authentication. If one of the parameter is not given by user then an error is logged in the console.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any string</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">password</td>
+        <td style="vertical-align: top; word-wrap: break-word">The password that has to be added in the authorization header of the HTTP request, if basic authentication is enabled at the target. It is required to specify both username and password to enable basic authentication. If one of the parameter is not given by user then an error is logged in the console.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any string</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">trustStoreFile</td>
+        <td style="vertical-align: top; word-wrap: break-word">The default file path to the location of truststore that the client needs to send for HTTPS requests through 'HTTPS' protocol.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any valid path for the truststore file</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">trustStorePassword</td>
+        <td style="vertical-align: top; word-wrap: break-word">The default password for the client-truststore to send HTTPS requests.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any string</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">headers</td>
+        <td style="vertical-align: top; word-wrap: break-word">The headers that should be included as HTTP request headers in the scrape request. The format of the supported input is as follows, <br>"'header1:value1','header2:value2'"</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any valid http headers</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">job</td>
+        <td style="vertical-align: top; word-wrap: break-word"> The default job name of the exported Prometheus metrics that has to be fetched.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any valid job name</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">instance</td>
+        <td style="vertical-align: top; word-wrap: break-word">The default instance of the exported Prometheus metrics that has to be fetched.</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any valid instance name</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">groupingKey</td>
+        <td style="vertical-align: top; word-wrap: break-word">The default grouping key of the required Prometheus metrics in key-value pairs. Grouping key is used if the metrics are exported by Prometheus pushGateway in order to distinguish the metrics from already existing metrics. The expected format of the grouping key is as follows: <br>"'key1:value1','key2:value2'"</td>
+        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">Any valid grouping key pairs</td>
+    </tr>
+</table>
 
 <span id="examples" class="md-typeset" style="display: block; font-weight: bold;">Examples</span>
 <span id="example-1" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">EXAMPLE 1</span>
 ```
- 
+@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', 
+metric.type= 'summary', metric.name= 'sweet_production', @map(type= ‘keyvalue’))
+define stream FooStream(name string, quantity int, value double);
+
 ```
-<p style="word-wrap: break-word"> </p>
+<p style="word-wrap: break-word">In this example, the prometheus source will make an http request to the 'target.url' and analyse the response. From the analysed response, the source retrieves the Prometheus summary metrics with name 'sweet_production' and converts the filtered metrics into Siddhi events using the key-value mapper.<br>The generated map will have keys and values as follows, <br>&nbsp;&nbsp;metric_name  -&gt; &lt;name_of_metric&gt;<br>&nbsp;&nbsp;metric_type  -&gt; &lt;type_of_metric&gt;<br>&nbsp;&nbsp;help  -&gt; &lt;help_string_of_metric&gt;<br>&nbsp;&nbsp;subtype  -&gt; &lt;'sum'/'count'/'null'&gt;<br>&nbsp;&nbsp;name -&gt; &lt;value_of_label_name&gt;  quantity -&gt; &lt;value_of_label_quantity&gt;  quantile  -&gt; &lt;value of the quantile&gt;  value -&gt; &lt;value_of_metric&gt;</p>
 

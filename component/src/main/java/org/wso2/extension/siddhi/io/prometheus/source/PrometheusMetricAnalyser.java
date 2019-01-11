@@ -1,14 +1,9 @@
 package org.wso2.extension.siddhi.io.prometheus.source;
 
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -59,7 +54,8 @@ class PrometheusMetricAnalyser {
             } else {
                 List<String> retrievedMetrics = metricSamples.stream().filter(
                         response -> response.startsWith(metricName)).collect(Collectors.toList());
-                List<String> filteredMetrics = (List<String>) ((ArrayList) retrievedMetrics).clone();
+//                ArrayList filteredMetrics = (ArrayList) ((ArrayList) retrievedMetrics).clone();
+                List<String> filteredMetrics = new ArrayList<>(retrievedMetrics);
                 if ((!metricJob.equals(PrometheusConstants.EMPTY_STRING) ||
                         !metricInstance.equals(PrometheusConstants.EMPTY_STRING) || !metricGroupingKey.isEmpty())) {
                     for (String sampleSingleLine : retrievedMetrics) {

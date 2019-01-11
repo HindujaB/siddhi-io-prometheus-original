@@ -32,6 +32,7 @@ import org.wso2.transport.http.netty.message.HttpCarbonResponse;
 import org.wso2.transport.http.netty.message.HttpMessageDataStreamer;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * HTTP connector listener for Siddhi-Prometheus-sink passThrough mode.
@@ -67,7 +68,7 @@ public class PrometheusHTTPServerListener implements HttpConnectorListener {
             HttpResponseFuture responseFuture;
             responseFuture = httpRequest.respond(httpResponse);
             HttpMessageDataStreamer httpMessageDataStreamer = new HttpMessageDataStreamer(httpResponse);
-            httpMessageDataStreamer.getOutputStream().write(payload.getBytes());
+            httpMessageDataStreamer.getOutputStream().write(payload.getBytes(StandardCharsets.UTF_8));
             httpMessageDataStreamer.getOutputStream().close();
             Throwable error = responseFuture.getStatus().getCause();
             if (error != null) {
