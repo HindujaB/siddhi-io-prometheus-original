@@ -22,8 +22,9 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 
@@ -339,12 +340,13 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 public class PrometheusSource extends Source {
 
     private static final Logger log = Logger.getLogger(PrometheusSource.class);
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     private PrometheusMetricAnalyser metricAnalyser;
     private String targetURL;
     private String siddhiAppName;
     private String streamName;
     private String scheme;
+    private double scrapeInterval;
 
     private PrometheusScraper prometheusScraper;
 
@@ -398,7 +400,7 @@ public class PrometheusSource extends Source {
             throw new SiddhiAppCreationException("The Prometheus source associated with stream " + streamName +
                     " contains an invalid value for target URL");
         }
-        double scrapeInterval = Double.parseDouble(optionHolder.validateAndGetStaticValue(
+        scrapeInterval = Double.parseDouble(optionHolder.validateAndGetStaticValue(
                 PrometheusConstants.SCRAPE_INTERVAL, configReader.readConfig(
                         PrometheusConstants.SCRAPE_INTERVAL_CONFIGURATION,
                         PrometheusConstants.DEFAULT_SCRAPE_INTERVAL)));
@@ -484,7 +486,8 @@ public class PrometheusSource extends Source {
      */
     @Override
     public void connect(ConnectionCallback connectionCallback) throws ConnectionUnavailableException {
-        executorService.execute(prometheusScraper);
+        executorService.schedule(prometheusScraper, (long) scrapeInterval, TimeUnit.SECONDS);
+//        executorService.execute(prometheusScraper);
     }
 
     /**

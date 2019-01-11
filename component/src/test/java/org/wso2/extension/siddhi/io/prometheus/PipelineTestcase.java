@@ -442,7 +442,7 @@ public class PipelineTestcase {
                 "\n" +
                 "\n" +
                 "@source(type = 'prometheus', target.url = 'http://localhost:9080', scheme = 'http', " +
-                "scrape.interval = '3', scrape.timeout = '2', metric.type = 'histogram', " +
+                "scrape.interval = '2', scrape.timeout = '2', metric.type = 'histogram', " +
                 "metric.name = 'test_histogram', \n" +
                 "\t@map(type = 'keyvalue'))\n" +
                 "Define stream SourceMapTestStream (metric_name String, metric_type String, help String, name String," +
