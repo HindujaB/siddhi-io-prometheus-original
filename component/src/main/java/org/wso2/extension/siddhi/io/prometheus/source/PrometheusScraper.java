@@ -117,7 +117,7 @@ public class PrometheusScraper implements Runnable {
             log.error(errorMessage);
             throw new SiddhiAppRuntimeException(errorMessage);
         } else {
-            if(!responseMetrics.equals(metricSamples)) {
+            if (!responseMetrics.equals(metricSamples)) {
                 metricSamples = responseMetrics;
                 metricAnalyser.analyseMetrics(metricSamples, targetURL);
                 this.lastValidSamples = metricAnalyser.getLastValidSamples();

@@ -33,6 +33,7 @@ import org.wso2.transport.http.netty.listener.ServerBootstrapConfiguration;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,23 +45,22 @@ import static java.lang.Double.parseDouble;
 public class PrometheusPassThroughServer {
     private static final Logger log = Logger.getLogger(PrometheusPassThroughServer.class);
     private static List<String> recordedMetricsList = new ArrayList<>();
+    private static String payloadStack = PrometheusConstants.EMPTY_STRING;
+    //    private static List<String> labelValues = new ArrayList<>();
     private URL serverURL;
     private ServerConnector serverConnector;
-    private ResponseGenerator responseGenerator;
+    private static ResponseGenerator responseGenerator = new ResponseGenerator();
     private PrometheusHTTPServerListener serverListener;
 
-    public PrometheusPassThroughServer(URL serverURL) {
+    public PrometheusPassThroughServer(URL serverURL, String metricName, Collector.Type metricType, String metricHelp
+            , String valueAttribute) {
         this.serverURL = serverURL;
-        serverListener = new PrometheusHTTPServerListener();
+        this.serverListener = new PrometheusHTTPServerListener();
+        responseGenerator.setMetricProperties(metricName, metricType, metricHelp, valueAttribute);
     }
 
-    public void initiateResponseGenerator(String metricName, Collector.Type metricType, String metricHelp,
-                                          String valueAttribute) {
-        responseGenerator = new ResponseGenerator();
-        responseGenerator.metricName = metricName;
-        responseGenerator.metricHelp = metricHelp;
-        responseGenerator.metricType = metricType;
-        responseGenerator.valueAttribute = valueAttribute;
+    static String getResponsePayload() {
+        return responseGenerator.writeMetricProperties() + responseGenerator.generateResponseBody();
     }
 
     public void start() {
@@ -69,14 +69,16 @@ public class PrometheusPassThroughServer {
         serverConnector = connectorFactory
                 .createServerConnector(new ServerBootstrapConfiguration(new HashMap<>()), listenerConfiguration);
         ServerConnectorFuture serverConnectorFuture = serverConnector.start();
-//        serverListener.setPayload(responseGenerator.response);
         serverConnectorFuture.setHttpConnectorListener(serverListener);
-
+        try {
+            serverConnectorFuture.sync();
+        } catch (InterruptedException e) {
+            log.error("Thread Interrupted while sleeping ", e);
+        }
     }
 
-    public void publishResponse(Map<String, Object> inputEvent) {
-        responseGenerator.generateResponseBody(inputEvent);
-        serverListener.setPayload(responseGenerator.response);
+    public void analyseReceivedEvent(Map<String, Object> inputEvent, int eventHash) {
+        responseGenerator.analyseEvent(inputEvent, eventHash);
     }
 
     public void stop() {
@@ -84,6 +86,7 @@ public class PrometheusPassThroughServer {
             serverConnector.stop();
         }
     }
+
 
     /**
      * Set Listener Configuration from given url.
@@ -105,9 +108,6 @@ public class PrometheusPassThroughServer {
             listenerConfiguration.setId(host + PrometheusConstants.VALUE_SEPARATOR + port);
             listenerConfiguration.setScheme(protocol);
             listenerConfiguration.setVersion(String.valueOf(Constants.HTTP_2_0));
-//                    listenerConfiguration.setMessageProcessorId(sourceConfigReader
-//                            .readConfig(HttpConstants.MESSAGE_PROCESSOR_ID,
-//                              HttpConstants.MESSAGE_PROCESSOR_ID_VALUE));
         } else {
             log.error("Invalid scheme found in the serverURL for passThrough mode of Prometheus sink.");
         }
@@ -115,18 +115,6 @@ public class PrometheusPassThroughServer {
         return listenerConfiguration;
     }
 
-    private static void writeMetricProperties(String metricName, Collector.Type metricType, String metricHelp,
-                                              StringBuilder builder) {
-        if (!recordedMetricsList.contains(metricName)) {
-            recordedMetricsList.add(metricName);
-            builder.append("# HELP ").append(metricName);
-            builder.append(PrometheusConstants.SPACE_STRING).append(metricHelp);
-            builder.append(System.lineSeparator());
-            builder.append("# TYPE ").append(metricName).append(PrometheusConstants.SPACE_STRING);
-            builder.append(PrometheusSinkUtil.getMetricTypeString(metricType));
-            builder.append(System.lineSeparator());
-        }
-    }
 
     /**
      * Generates response for HTTP server from the received events Siddhi-Prometheus-sink passThrough mode.
@@ -134,14 +122,46 @@ public class PrometheusPassThroughServer {
     static class ResponseGenerator {
         private String metricName;
         private Collector.Type metricType;
-        private String metricHelp;
-        private String response = PrometheusConstants.EMPTY_STRING;
         private String valueAttribute;
+        private Map<Integer, Map<String, Object>> eventMap = new LinkedHashMap<>();
+        private static Map<Integer, List<Map<String, Object>>> eventChunkMap = new LinkedHashMap<>();
+        private static List<Map<String, Object>> eventChunk = new ArrayList<>();
+        private String metricHelp;
 
-        void generateResponseBody(Map<String, Object> inputEvent) {
-            validateAndOverrideMetricProperties(inputEvent);
-            StringBuilder builder = new StringBuilder(response);
-            PrometheusPassThroughServer.writeMetricProperties(metricName, metricType, metricHelp, builder);
+        ResponseGenerator() {
+        }
+
+        void setMetricProperties(String metricName, Collector.Type metricType, String metricHelp,
+                                 String valueAttribute) {
+            this.metricName = metricName;
+            this.metricType = metricType;
+            this.metricHelp = metricHelp;
+            this.valueAttribute = valueAttribute;
+        }
+
+        String generateResponseBody() {
+            StringBuilder builder = new StringBuilder();
+            if (metricType != null) {
+                if (metricType.equals(Collector.Type.COUNTER) || metricType.equals(Collector.Type.GAUGE)) {
+                    if (!eventMap.isEmpty()) {
+                        for (Map.Entry<Integer, Map<String, Object>> entry : eventMap.entrySet()) {
+                            builder.append(writeResponse(entry.getValue()));
+                        }
+                    }
+                } else if (metricType.equals(Collector.Type.HISTOGRAM) || metricType.equals(Collector.Type.SUMMARY)) {
+                    if (!eventChunkMap.isEmpty()) {
+                        for (Map.Entry<Integer, List<Map<String, Object>>> entry : eventChunkMap.entrySet()) {
+                            entry.getValue().forEach(event -> builder.append(writeResponse(
+                                    PrometheusSinkUtil.cloneMap(event))));
+                        }
+                    }
+                }
+            }
+            return builder.toString();
+        }
+
+        private String writeResponse(Map<String, Object> inputEvent) {
+            StringBuilder builder = new StringBuilder(PrometheusConstants.EMPTY_STRING);
             inputEvent.remove(PrometheusConstants.MAP_NAME);
             inputEvent.remove(PrometheusConstants.MAP_TYPE);
             inputEvent.remove(PrometheusConstants.MAP_HELP);
@@ -171,10 +191,13 @@ public class PrometheusPassThroughServer {
                 }
                 builder.append("}");
             }
+            inputEvent.remove(PrometheusConstants.LE_KEY);
+            inputEvent.remove(PrometheusConstants.QUANTILE_KEY);
             builder.append(PrometheusConstants.SPACE_STRING);
             builder.append(valueToString(value));
             builder.append(System.lineSeparator());
-            response = builder.toString();
+            return builder.toString();
+
         }
 
         private String setSampleName(String subType) {
@@ -234,7 +257,7 @@ public class PrometheusPassThroughServer {
             }
         }
 
-        private void validateAndOverrideMetricProperties(Map<String, Object> metricMap) {
+        private void validateMetricType(Map<String, Object> metricMap) {
             String metricType = null;
             if (metricMap.containsKey(PrometheusConstants.MAP_TYPE)) {
                 metricType = metricMap.get(PrometheusConstants.MAP_TYPE).toString();
@@ -247,6 +270,62 @@ public class PrometheusPassThroughServer {
             }
         }
 
+        void analyseEvent(Map<String, Object> inputEvent, int eventHash) {
+            validateMetricType(inputEvent);
+            if (metricType != null) {
+                switch (metricType) {
+                    case COUNTER:
+                    case GAUGE: {
+                        if (eventMap.containsKey(eventHash)) {
+                            eventMap.replace(eventHash, inputEvent);
+                        } else {
+                            eventMap.put(eventHash, inputEvent);
+                        }
+                        break;
+                    }
+                    case HISTOGRAM:
+                    case SUMMARY: {
+                        if (inputEvent.containsKey(PrometheusConstants.MAP_SAMPLE_SUBTYPE)) {
+                            String subType = inputEvent.get(PrometheusConstants.MAP_SAMPLE_SUBTYPE).toString();
+                            switch (subType) {
+                                case PrometheusConstants.SUBTYPE_BUCKET:
+                                case PrometheusConstants.SUBTYPE_NULL:
+                                case PrometheusConstants.SUBTYPE_COUNT: {
+                                    eventChunk.add(inputEvent);
+                                    break;
+                                }
+                                case PrometheusConstants.SUBTYPE_SUM: {
+                                    eventChunk.add(inputEvent);
+                                    if (eventChunkMap.containsKey(eventHash)) {
+                                        eventChunkMap.replace(eventHash,
+                                                PrometheusSinkUtil.cloneMapList(eventChunk));
+                                    } else {
+                                        eventChunkMap.put(eventHash, PrometheusSinkUtil.cloneMapList(eventChunk));
+                                    }
+                                    eventChunk.clear();
+                                    break;
+                                }
+                                default:
+                                    //default will never be executed
+                            }
+                        }
+                        break;
+                    }
+                    default:
+                        //default will never be executed
+                }
+            }
+        }
+
+        private String writeMetricProperties() {
+
+            return "# HELP " + metricName +
+                    PrometheusConstants.SPACE_STRING + metricHelp +
+                    System.lineSeparator() +
+                    "# TYPE " + metricName + PrometheusConstants.SPACE_STRING +
+                    PrometheusSinkUtil.getMetricTypeString(metricType) +
+                    System.lineSeparator();
+        }
     }
 }
 

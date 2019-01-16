@@ -17,7 +17,11 @@ package org.wso2.extension.siddhi.io.prometheus.sink.util;
  * under the License.
  */
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -29,9 +33,8 @@ import org.wso2.transport.http.netty.contract.HttpResponseFuture;
 import org.wso2.transport.http.netty.contract.ServerConnectorException;
 import org.wso2.transport.http.netty.message.HTTPCarbonMessage;
 import org.wso2.transport.http.netty.message.HttpCarbonResponse;
-import org.wso2.transport.http.netty.message.HttpMessageDataStreamer;
 
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -40,13 +43,16 @@ import java.nio.charset.StandardCharsets;
 public class PrometheusHTTPServerListener implements HttpConnectorListener {
     private static final Logger log = Logger.getLogger(PrometheusHTTPServerListener.class);
     private String payload = PrometheusConstants.EMPTY_STRING;
+    private HTTPCarbonMessage httpResponse = generateResponseMessage();
+    private final int contentBufferSize = 8192;
+    private ByteBuf buffer = Unpooled.buffer(contentBufferSize);
+    private HttpContent httpContent = new DefaultLastHttpContent(buffer);
 
 
     @Override
     public void onMessage(HTTPCarbonMessage httpRequest) {
         if (PrometheusConstants.HTTP_SCHEME.equals(httpRequest.getProperty(Constants.PROTOCOL))) {
-            HTTPCarbonMessage httpResponse = generateResponseMessage();
-            sendResponse(httpRequest, httpResponse);
+            sendResponse(httpRequest);
         }
     }
 
@@ -62,20 +68,29 @@ public class PrometheusHTTPServerListener implements HttpConnectorListener {
         return httpResponse;
     }
 
-    private void sendResponse(HTTPCarbonMessage httpRequest, HTTPCarbonMessage httpResponse) {
+    private void createResponsePayload(String responseValue, HTTPCarbonMessage httpResponse) {
+        byte[] array;
+        array = responseValue.getBytes(StandardCharsets.UTF_8);
+        httpResponse.setHeader(HttpHeaderNames.CONTENT_LENGTH.toString(), String.valueOf(array.length));
+        ByteBuffer byteBuffer1 = ByteBuffer.allocate(array.length);
+        byteBuffer1.put(array);
+        byteBuffer1.flip();
+        httpResponse.addHttpContent(new DefaultLastHttpContent(Unpooled.wrappedBuffer(byteBuffer1)));
+    }
+
+    private void sendResponse(HTTPCarbonMessage httpRequest) {
         // Send the intended response message
         try {
             HttpResponseFuture responseFuture;
+            String payload = PrometheusPassThroughServer.getResponsePayload();
+            createResponsePayload(payload, httpResponse);
             responseFuture = httpRequest.respond(httpResponse);
-            HttpMessageDataStreamer httpMessageDataStreamer = new HttpMessageDataStreamer(httpResponse);
-            httpMessageDataStreamer.getOutputStream().write(payload.getBytes(StandardCharsets.UTF_8));
-            httpMessageDataStreamer.getOutputStream().close();
             Throwable error = responseFuture.getStatus().getCause();
             if (error != null) {
                 responseFuture.resetStatus();
                 log.error("Error occurred while sending the response " + error.getMessage());
             }
-        } catch (ServerConnectorException | IOException e) {
+        } catch (ServerConnectorException e) {
             log.error("Error occurred while processing message: " + e.getMessage());
         }
     }
@@ -85,7 +100,4 @@ public class PrometheusHTTPServerListener implements HttpConnectorListener {
 
     }
 
-    void setPayload(String payload) {
-        this.payload = payload;
-    }
 }

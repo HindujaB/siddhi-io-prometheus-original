@@ -23,8 +23,10 @@ import io.prometheus.client.Collector;
 import org.wso2.siddhi.core.exception.SiddhiAppCreationException;
 import org.wso2.siddhi.core.util.config.ConfigReader;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -248,4 +250,31 @@ public class PrometheusSinkUtil {
             }
         }
     }
+
+    /**
+     * To clone a Map<String, Object> object.
+     * @param objectMap original map
+     * @return cloned map
+     */
+    public static Map<String, Object> cloneMap(Map<String, Object> objectMap) {
+        Map<String, Object> cloneMap = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : objectMap.entrySet()) {
+            cloneMap.put(entry.getKey(), entry.getValue());
+        }
+        return cloneMap;
+    }
+
+    /**
+     * To clone a List of Map<String, Object> objects.
+     * @param mapList Original list of maps
+     * @return cloned list
+     */
+    public static List<Map<String, Object>> cloneMapList(List<Map<String, Object>> mapList) {
+        List<Map<String, Object>> cloneMapList = new ArrayList<>();
+        for (Map<String, Object> map : mapList) {
+            cloneMapList.add(cloneMap(map));
+        }
+        return cloneMapList;
+    }
+
 }

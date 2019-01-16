@@ -32,6 +32,7 @@ import org.wso2.extension.siddhi.io.prometheus.source.PrometheusSourceTest;
 import org.wso2.siddhi.core.SiddhiAppRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
+import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 
 import java.io.IOException;
@@ -432,7 +433,7 @@ public class PipelineTestcase {
      */
     @Test(sequential = true)
     public void prometheusSourceTest5() throws InterruptedException {
-        initializeMetrics();
+//        initializeMetrics();
         SiddhiManager siddhiManager = new SiddhiManager();
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test for Prometheus source-sink pipelining with summary metric");
@@ -487,7 +488,209 @@ public class PipelineTestcase {
 
         siddhiAppRuntime.addCallback("SourceMapTestStream", insertionStreamCallback);
         siddhiAppRuntime.start();
-        Thread.sleep(30000);
+        Thread.sleep(15000);
+        siddhiAppRuntime.shutdown();
+    }
+
+    @Test(sequential = true)
+    public void prometheusSourceTest6() throws InterruptedException {
+//        initializeMetrics();
+        SiddhiManager siddhiManager = new SiddhiManager();
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Source test for Prometheus source-sink pipelining with summary metric");
+        log.info("----------------------------------------------------------------------------------");
+        String app = "@App:name(\"TestSiddhiApp2\")\n" +
+                "@App:description(\"Description of the plan\")\n" +
+                "\n" +
+                "define stream InputStream (name String, age string, marks double);\n" +
+                "\n" +
+                "@sink(type='prometheus' ,publish.mode = 'server', server.url= 'http://localhost:9080/metrics', " +
+                "metric.type='histogram', metric.name='student_marks_details', buckets='50',@map(type='keyvalue'))\n" +
+                "define stream FirstSinkStream(name string, age string, value double);\n" +
+                "\n" +
+                "@source(type = 'prometheus', target.url = 'http://localhost:9080/metrics', scheme = 'http', scrape" +
+                ".interval = '3', scrape.timeout = '2', metric.type = 'histogram', metric.name = " +
+                "'student_marks_details', \n" +
+                "\t@map(type = 'keyvalue'))\n" +
+                "Define stream SourceMapTestStream (metric_name String, metric_type String, help String, name String," +
+                " age String, subtype String, le String, value double);\n" +
+                " \n" +
+                "@sink(type='prometheus' ,publish.mode = 'passThrough', server.url= 'http://localhost:9096/metrics', " +
+                "metric.type='histogram',value.attribute='marks', metric.name='student_marks_details_reproduced' ," +
+                "@map(type='keyvalue'))\n" +
+                "define stream SecondSinkStream(metric_name String, metric_type String, help String, name String, age" +
+                " String, subtype String, le String, marks double);\n" +
+                "\n" +
+                "@sink(type = 'log', prefix = 'test')\n" +
+                "define stream OutputStream (metric_name String, metric_type String, help String, name String," +
+                "age String, subtype String, le String, value double);\n" +
+                "\n" +
+                " \n" +
+                " \n" +
+                "@info(name = 'queryInputToPrometheusSink') \n" +
+                "from InputStream\n" +
+                "select name, age, marks as value\n" +
+                "insert into FirstSinkStream;\n" +
+                "\n" +
+                "@info(name = 'queryPrometheusSourceToPrometheusSink') \n" +
+                "from SourceMapTestStream\n" +
+                "select metric_name, metric_type, help, name, age, subtype,le,value as marks   \n" +
+                "insert into SecondSinkStream;\n" +
+                "\n" +
+                "@info(name = 'queryPrometheusSourceToLogSink') \n" +
+                "from SourceMapTestStream\n" +
+                "select *\n" +
+                "insert into OutputStream;";
+
+
+        StreamCallback streamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    eventCount.getAndIncrement();
+                    log.info(event);
+                    eventArrived.set(true);
+                }
+            }
+        };
+        SiddhiAppRuntime siddhiAppRuntime =
+                siddhiManager.createSiddhiAppRuntime(app);
+        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
+        siddhiAppRuntime.addCallback("FirstSinkStream", streamCallback);
+        StreamCallback insertionStreamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    currentEvent = event;
+                    eventArrived.set(true);
+                    receivedEvents.add(event.getData());
+                }
+            }
+        };
+        StreamCallback outPutStreamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    currentEvent = event;
+                    eventArrived.set(true);
+                    receivedEvents.add(event.getData());
+                }
+            }
+        };
+
+        siddhiAppRuntime.addCallback("SecondSinkStream", insertionStreamCallback);
+        siddhiAppRuntime.addCallback("OutputStream", outPutStreamCallback);
+        siddhiAppRuntime.start();
+        Object[] inputEvent1 = new Object[]{"WSO2", "14", 78.8};
+        Object[] inputEvent2 = new Object[]{"WSO2", "14", 65.32};
+        Object[] inputEvent3 = new Object[]{"IBM", "22", 74.87};
+        inputHandler.send(inputEvent1);
+        Thread.sleep(15000);
+        inputHandler.send(inputEvent2);
+        Thread.sleep(15000);
+        inputHandler.send(inputEvent3);
+        Thread.sleep(12000);
+        siddhiAppRuntime.shutdown();
+    }
+
+    @Test(sequential = true)
+    public void prometheusSourceTest7() throws InterruptedException {
+//        initializeMetrics();
+        SiddhiManager siddhiManager = new SiddhiManager();
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Source test for Prometheus source-sink pipelining with summary metric");
+        log.info("----------------------------------------------------------------------------------");
+        String app = "@App:name(\"TestSiddhiApp4\")\n" +
+                "@App:description(\"Description of the plan\")\n" +
+                "\n" +
+                "define stream InputStream (name String, age string, marks double);\n" +
+                "\n" +
+                "@sink(type='prometheus' ,publish.mode = 'server', server.url= 'http://localhost:9080/metrics', " +
+                "metric.type='counter', metric.name='student_marks_details',@map(type='keyvalue'))\n" +
+                "define stream FirstSinkStream(name string, age string, value double);\n" +
+                "\n" +
+                "@source(type = 'prometheus', target.url = 'http://localhost:9080/metrics', scheme = 'http', scrape" +
+                ".interval = '3', scrape.timeout = '2', metric.type = 'counter', metric.name = " +
+                "'student_marks_details', \n\t@map(type = 'keyvalue'))\n" +
+                "Define stream SourceMapTestStream (metric_name String, metric_type String, help String, name String," +
+                " age String, subtype String, value double);\n" +
+                " \n" +
+                "@sink(type='prometheus' ,publish.mode = 'passThrough', server.url= 'http://localhost:9096/metrics', " +
+                "metric.type='counter', value.attribute='marks', metric.name='student_marks_details_reproduced',@map" +
+                "(type='keyvalue'))\n" +
+                "define stream SecondSinkStream(metric_name String, metric_type String, help String, name String, age" +
+                " String, subtype String, marks double);\n" +
+                "\n" +
+                "@sink(type = 'log', prefix = 'test')\n" +
+                "define stream OutputStream (metric_name String, metric_type String, help String, name String, age " +
+                "String, subtype String, value double);\n" +
+                "\n" +
+                " \n" +
+                " \n" +
+                "@info(name = 'queryInputToPrometheusSink') \n" +
+                "from InputStream\n" +
+                "select name, age, marks as value\n" +
+                "insert into FirstSinkStream;\n" +
+                "\n" +
+                "@info(name = 'queryPrometheusSourceToPrometheusSink') \n" +
+                "from SourceMapTestStream\n" +
+                "select metric_name, metric_type, help, name, age, subtype, value as marks   \n" +
+                "insert into SecondSinkStream;\n" +
+                "\n" +
+                "@info(name = 'queryPrometheusSourceToLogSink') \n" +
+                "from SourceMapTestStream\n" +
+                "select *\n" +
+                "insert into OutputStream;\n" +
+                "\n";
+
+
+        StreamCallback streamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    eventCount.getAndIncrement();
+                    log.info(event);
+                    eventArrived.set(true);
+                }
+            }
+        };
+        SiddhiAppRuntime siddhiAppRuntime =
+                siddhiManager.createSiddhiAppRuntime(app);
+        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
+        siddhiAppRuntime.addCallback("FirstSinkStream", streamCallback);
+        StreamCallback insertionStreamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    currentEvent = event;
+                    eventArrived.set(true);
+                    receivedEvents.add(event.getData());
+                }
+            }
+        };
+        StreamCallback outPutStreamCallback = new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    currentEvent = event;
+                    eventArrived.set(true);
+                    receivedEvents.add(event.getData());
+                }
+            }
+        };
+
+        siddhiAppRuntime.addCallback("SecondSinkStream", insertionStreamCallback);
+        siddhiAppRuntime.addCallback("OutputStream", outPutStreamCallback);
+        siddhiAppRuntime.start();
+        Object[] inputEvent1 = new Object[]{"WSO2", "14", 78.8};
+        Object[] inputEvent2 = new Object[]{"WSO2", "14", 65.32};
+        Object[] inputEvent3 = new Object[]{"IBM", "22", 74.87};
+        inputHandler.send(inputEvent1);
+        Thread.sleep(15000);
+        inputHandler.send(inputEvent2);
+        Thread.sleep(15000);
+        inputHandler.send(inputEvent3);
+        Thread.sleep(12000);
         siddhiAppRuntime.shutdown();
     }
 }

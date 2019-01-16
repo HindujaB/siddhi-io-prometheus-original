@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static java.lang.Double.parseDouble;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.DEFAULT_ERROR;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.HELP_STRING;
@@ -66,7 +67,6 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.P
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.SERVER_PUBLISH_MODE;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.SPACE_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.VALUE_STRING;
-import static java.lang.Double.parseDouble;
 
 /**
  * Extension for Siddhi to publish events as Prometheus metrics.
@@ -454,7 +454,9 @@ public class PrometheusSink extends Sink {
                     "\'" + getStreamDefinition().getId() + "\' of Prometheus sink.");
         } else {
             if (PrometheusConstants.PASSTHROUGH_PUBLISH_MODE.equals(publishMode)) {
-                passThroughServer.publishResponse((Map<String, Object>) payload);
+                Map<String, Object> payloadMap = (Map<String, Object>) payload;
+                int eventHash = getRefinedMap(PrometheusSinkUtil.cloneMap(payloadMap)).hashCode();
+                passThroughServer.analyseReceivedEvent(payloadMap, eventHash);
             } else {
                 Map<String, Object> attributeMap = (Map<String, Object>) payload;
                 String[] labels;
@@ -481,6 +483,17 @@ public class PrometheusSink extends Sink {
                 }
             }
         }
+    }
+
+    private Map<String, Object> getRefinedMap(Map<String, Object> payload) {
+        payload.remove(PrometheusConstants.MAP_NAME);
+        payload.remove(PrometheusConstants.MAP_TYPE);
+        payload.remove(PrometheusConstants.MAP_HELP);
+        payload.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
+        payload.remove(PrometheusConstants.QUANTILE_KEY);
+        payload.remove(PrometheusConstants.LE_KEY);
+        payload.remove(valueAttribute);
+        return payload;
     }
 
     @Override
@@ -526,8 +539,7 @@ public class PrometheusSink extends Sink {
     }
 
     private void initiatePassThroughServer(URL target) {
-        passThroughServer = new PrometheusPassThroughServer(target);
-        passThroughServer.initiateResponseGenerator(metricName, metricType, metricHelp, valueAttribute);
+        passThroughServer = new PrometheusPassThroughServer(target, metricName, metricType, metricHelp, valueAttribute);
         passThroughServer.start();
     }
 
@@ -552,6 +564,7 @@ public class PrometheusSink extends Sink {
         }
         if (passThroughServer != null) {
             passThroughServer.stop();
+            log.info("Server successfully stopped at " + serverURL);
         }
     }
 
