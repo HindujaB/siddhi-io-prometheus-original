@@ -99,27 +99,25 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 @Extension(
         name = "prometheus",
         namespace = "source",
-        description = "The source consumes events as exported Prometheus metrics from the specified url through \n" +
-                "http requests. According to the source configuration, it analyses metrics from the text response \n" +
-                "and send them as Siddhi events with key-value mapping. Prometheus source supports HTTP and HTTPS \n" +
+        description = "The source consumes Prometheus metrics as Siddhi events which are being exported from the \n" +
+                "specified url through http requests. According to the source configuration, it analyses metrics " +
+                "from the text response \n" +
+                "and send them as Siddhi events through key-value mapping. Prometheus source supports HTTP and HTTPS " +
+                "\n" +
                 "schemes for scraping metrics through http requests. The user can retrieve metrics of types \n" +
                 "counter, gauge, histogram and summary. The required Prometheus metric can be specified \n" +
-                "inside the source configuration using the metric name, job name, instance and grouping keys.\n" +
-                " Since the source supports key-value mapping for histogram and summary metric types, \n" +
-                "It is advised " +
-                "that the exported metrics must not contain label names starts with \"bucket_\",\"quantile_\", " +
-                "\"sum\" or \"count\".",
+                "inside the source configuration using the metric name, job name, instance and grouping keys.\n",
         parameters = {
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
                                 "exported in text format.",
-                        defaultValue = "http://localhost:9090",
+                        defaultValue = "http://localhost:9090/metrics",
                         optional = true,
                         type = DataType.STRING),
                 @Parameter(
                         name = "scrape.interval",
                         description = "This property specifies the time interval that the source should make an HTTP " +
-                                "scrape request to the  provided target url in seconds. By default, the source will " +
+                                "request to the  provided target url (in seconds). By default, the source will " +
                                 "scrape metrics within 60 seconds interval.",
                         defaultValue = "60",
                         optional = true,
@@ -230,16 +228,6 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                         optional = true,
                         type = {DataType.STRING}
                 ),
-                @Parameter(
-                        name = "labels",
-                        description = " This parameter specifies the Prometheus Metric labels and values that are " +
-                                "needed to identify the required metrics\n" +
-                                "The format of the supported input is as follows,\n" +
-                                "\'label1:value1\',\'label2:value2'. ",
-                        defaultValue = " ",
-                        optional = true,
-                        type = {DataType.STRING}
-                ),
         },
         examples = {
                 @Example(
@@ -255,10 +243,10 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                                 "  metric_type  -> <type_of_metric>\n" +
                                 "  help  -> <help_string_of_metric>\n" +
                                 "  subtype  -> <'sum'/'count'/'null'>\n" +
-                                "  name -> <value_of_label_name>" +
-                                "  quantity -> <value_of_label_quantity>" +
-                                "  quantile  -> <value of the quantile>" +
-                                "  value -> <value_of_metric>"
+                                "  name -> <value_of_label_name>\n" +
+                                "  quantity -> <value_of_label_quantity>\n" +
+                                "  quantile  -> <value of the quantile>\n" +
+                                "  value -> <value_of_metric>\n"
                 )
         },
         systemParameter = {
@@ -266,7 +254,7 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                         name = "targetURL",
                         description = "This property configure the URL of the target where the Prometheus metrics " +
                                 "are exported in text format.",
-                        defaultValue = "'http://localhost:9080/metrics'",
+                        defaultValue = "'http://localhost:9090/metrics'",
                         possibleParameters = "Any valid URL which exports Prometheus metrics in text format"
                 ),
                 @SystemParameter(
