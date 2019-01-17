@@ -1,4 +1,3 @@
-package org.wso2.extension.siddhi.io.prometheus.sink.util;
 /*
  * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
@@ -16,6 +15,8 @@ package org.wso2.extension.siddhi.io.prometheus.sink.util;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.wso2.extension.siddhi.io.prometheus.sink.util;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

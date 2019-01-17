@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.extension.siddhi.io.prometheus.source;
 
 import org.apache.log4j.Logger;
@@ -95,6 +113,8 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
                                 "exported in text format.",
+                        defaultValue = "http://localhost:9090",
+                        optional = true,
                         type = DataType.STRING),
                 @Parameter(
                         name = "scrape.interval",
@@ -292,13 +312,13 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                         name = "trustStoreFile",
                         description = "The default file path to the location of truststore that the client needs " +
                                 "to send for HTTPS requests through 'HTTPS' protocol.",
-                        defaultValue = " ",
+                        defaultValue = "${carbon.home}/resources/security/client-truststore.jks",
                         possibleParameters = "Any valid path for the truststore file"
                 ),
                 @SystemParameter(
                         name = "trustStorePassword",
                         description = "The default password for the client-truststore to send HTTPS requests.",
-                        defaultValue = " ",
+                        defaultValue = "wso2carbon",
                         possibleParameters = "Any string"
                 ),
                 @SystemParameter(
@@ -421,7 +441,7 @@ public class PrometheusSource extends Source {
         String headers = optionHolder.validateAndGetStaticValue(PrometheusConstants.REQUEST_HEADERS,
                 configReader.readConfig(PrometheusConstants.REQUEST_HEADERS_CONFIGURATION, EMPTY_STRING));
 
-        List<Header> headerList = PrometheusSourceUtil.getHeaders(headers);
+        List<Header> headerList = PrometheusSourceUtil.getHeaders(headers, streamName);
         this.prometheusScraper = new PrometheusScraper(targetURL, scheme, scrapeTimeout, headerList,
                 sourceEventListener);
         if ((EMPTY_STRING.equals(userName) ^ EMPTY_STRING.equals(password))) {
@@ -448,7 +468,8 @@ public class PrometheusSource extends Source {
                                          SiddhiAppContext siddhiAppContext) {
         String metricName = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_NAME, streamName);
         MetricType metricType = MetricType.assignMetricType(optionHolder.
-                validateAndGetStaticValue(PrometheusConstants.METRIC_TYPE));
+                validateAndGetStaticValue(PrometheusConstants.METRIC_TYPE),
+                streamName);
         String job = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_JOB,
                 configReader.readConfig(PrometheusConstants.METRIC_JOB_CONFIGURATION, EMPTY_STRING));
         String instance = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_INSTANCE,
@@ -456,12 +477,14 @@ public class PrometheusSource extends Source {
         Map<String, String> groupingKeyMap = PrometheusSourceUtil.populateStringMap(
                 optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_GROUPING_KEY,
                         PrometheusConstants.EMPTY_STRING));
+
+
         prometheusScraper.setMetricProperties(metricName, metricType, job, instance, groupingKeyMap);
     }
 
     private void validateNegativeValue(double value) {
         if (value < 0) {
-            throw new SiddhiAppCreationException("The value of fields scrape interval or scrape timeout of " +
+            throw new SiddhiAppCreationException("The value of fields scrape interval or scrape timeout from " +
                     PrometheusConstants.PROMETHEUS_SOURCE + " cannot be negative in " + streamName);
         }
     }

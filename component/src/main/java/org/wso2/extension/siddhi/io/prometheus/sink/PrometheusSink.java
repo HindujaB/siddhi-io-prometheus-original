@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static java.lang.Double.parseDouble;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.DEFAULT_ERROR;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.HELP_STRING;
@@ -67,6 +66,7 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.P
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.SERVER_PUBLISH_MODE;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.SPACE_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.VALUE_STRING;
+import static java.lang.Double.parseDouble;
 
 /**
  * Extension for Siddhi to publish events as Prometheus metrics.
@@ -527,7 +527,8 @@ public class PrometheusSink extends Sink {
                 case PrometheusConstants.PASSTHROUGH_PUBLISH_MODE:
                     target = new URL(serverURL);
                     initiatePassThroughServer(target);
-                    log.info(metricName + " has successfully connected at " + serverURL + " in passThrough mode");
+                    log.info(getStreamDefinition().getId() + " has successfully connected at " + serverURL + " in " +
+                            "passThrough mode");
                     break;
                 default:
                     //default will never be executed

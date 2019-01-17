@@ -37,7 +37,6 @@ class PrometheusRegistryHolder {
         CollectorRegistry registry = new CollectorRegistry();
         registryMap.put(hashKey, registry);
         return registry;
-
     }
 
     static CollectorRegistry retrieveRegistry(String host, int port) {

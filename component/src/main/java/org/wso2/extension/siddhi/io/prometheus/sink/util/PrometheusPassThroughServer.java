@@ -1,4 +1,3 @@
-package org.wso2.extension.siddhi.io.prometheus.sink.util;
 /*
  * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
@@ -16,6 +15,8 @@ package org.wso2.extension.siddhi.io.prometheus.sink.util;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.wso2.extension.siddhi.io.prometheus.sink.util;
 
 import io.prometheus.client.Collector;
 import org.apache.log4j.Logger;
@@ -145,7 +146,7 @@ public class PrometheusPassThroughServer {
                 if (metricType.equals(Collector.Type.COUNTER) || metricType.equals(Collector.Type.GAUGE)) {
                     if (!eventMap.isEmpty()) {
                         for (Map.Entry<Integer, Map<String, Object>> entry : eventMap.entrySet()) {
-                            builder.append(writeResponse(entry.getValue()));
+                            builder.append(writeResponse(PrometheusSinkUtil.cloneMap(entry.getValue())));
                         }
                     }
                 } else if (metricType.equals(Collector.Type.HISTOGRAM) || metricType.equals(Collector.Type.SUMMARY)) {
@@ -277,9 +278,9 @@ public class PrometheusPassThroughServer {
                     case COUNTER:
                     case GAUGE: {
                         if (eventMap.containsKey(eventHash)) {
-                            eventMap.replace(eventHash, inputEvent);
+                            eventMap.replace(eventHash, PrometheusSinkUtil.cloneMap(inputEvent));
                         } else {
-                            eventMap.put(eventHash, inputEvent);
+                            eventMap.put(eventHash, PrometheusSinkUtil.cloneMap(inputEvent));
                         }
                         break;
                     }

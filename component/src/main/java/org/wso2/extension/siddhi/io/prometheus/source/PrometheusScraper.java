@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.extension.siddhi.io.prometheus.source;
 
 import io.netty.buffer.ByteBuf;
@@ -38,7 +56,8 @@ import java.util.stream.Collectors;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 
 /**
- *
+ *This class creates and sends an http request to the target-URL according to user inputs. And it transfers the
+ * retrieved data to {@code PrometheusMetricAnalyser} class.
  */
 public class PrometheusScraper implements Runnable {
     private static final Logger log = Logger.getLogger(PrometheusScraper.class);
@@ -86,12 +105,6 @@ public class PrometheusScraper implements Runnable {
         }
     }
 
-    private String encode(String userNamePassword) {
-        ByteBuf byteBuf = Unpooled.wrappedBuffer(userNamePassword.getBytes(StandardCharsets.UTF_8));
-        ByteBuf encodedByteBuf = Base64.encode(byteBuf);
-        return encodedByteBuf.toString(StandardCharsets.UTF_8);
-    }
-
     private void retrieveMetricSamples() throws IOException {
         Map<String, String> urlProperties = PrometheusSourceUtil.getURLProperties(targetURL, scheme);
         SenderConfiguration senderConfiguration = PrometheusSourceUtil.getSenderConfigurations(urlProperties,
@@ -109,13 +122,12 @@ public class PrometheusScraper implements Runnable {
         List<String> responseMetrics = sendRequest(httpClientConnector, urlProperties, headers);
         String errorMessage = PrometheusConstants.EMPTY_STRING;
         if (responseMetrics == null) {
-            errorMessage = "Error occurred while retrieving metrics. Error : Response is null.";
+            errorMessage = "Error occurred while retrieving metrics at " + targetURL + ". Error : Response is null.";
         } else if (responseMetrics.isEmpty()) {
             errorMessage = "The target at" + targetURL + "returns an empty response";
         }
         if (!errorMessage.equals(PrometheusConstants.EMPTY_STRING)) {
-            log.error(errorMessage);
-            throw new SiddhiAppRuntimeException(errorMessage);
+            log.error(errorMessage, new SiddhiAppRuntimeException(errorMessage));
         } else {
             if (!responseMetrics.equals(metricSamples)) {
                 metricSamples = responseMetrics;
@@ -123,6 +135,12 @@ public class PrometheusScraper implements Runnable {
                 this.lastValidSamples = metricAnalyser.getLastValidSamples();
             }
         }
+    }
+
+    private String encode(String userNamePassword) {
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(userNamePassword.getBytes(StandardCharsets.UTF_8));
+        ByteBuf encodedByteBuf = Base64.encode(byteBuf);
+        return encodedByteBuf.toString(StandardCharsets.UTF_8);
     }
 
     private static List<String> sendRequest(HttpClientConnector clientConnector, Map<String, String> urlProperties,
@@ -167,36 +185,21 @@ public class PrometheusScraper implements Runnable {
 
     private static HTTPCarbonMessage generateCarbonMessage(List<Header> headers, Map<String, String> urlProperties,
                                                            HTTPCarbonMessage carbonMessage) {
-        /*
-         * set carbon message properties which is to be used in carbon transport.
-         */
-        // Set protocol type http or https
         carbonMessage.setProperty(Constants.PROTOCOL, urlProperties.get(Constants.PROTOCOL));
-        // Set uri
         carbonMessage.setProperty(Constants.TO, urlProperties.get(Constants.TO));
-        // set Host
         carbonMessage.setProperty(Constants.HTTP_HOST, urlProperties.get(Constants.HTTP_HOST));
-        //set port
         carbonMessage.setProperty(Constants.HTTP_PORT, Integer.valueOf(urlProperties.get(Constants.HTTP_PORT)));
-        // Set method
         carbonMessage.setProperty(Constants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
-        //Set request URL
         carbonMessage.setProperty(Constants.REQUEST_URL, urlProperties.get(Constants.REQUEST_URL));
         HttpHeaders httpHeaders = carbonMessage.getHeaders();
         httpHeaders.set(Constants.HTTP_HOST, carbonMessage.getProperty(Constants.HTTP_HOST));
-        /*
-         *set request headers.
-         */
-        // Set user given Headers
+
         if (headers != null) {
             for (Header header : headers) {
                 httpHeaders.set(header.getName(), header.getValue());
             }
         }
-        // Set content type if content type is not included in headers
         httpHeaders.set(PrometheusConstants.HTTP_CONTENT_TYPE, PrometheusConstants.TEXT_PLAIN);
-
-        //set method-type header
         httpHeaders.set(PrometheusConstants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
         return carbonMessage;
     }
@@ -207,7 +210,7 @@ public class PrometheusScraper implements Runnable {
             try {
                 retrieveMetricSamples();
             } catch (IOException e) {
-                throw new PrometheusSourceException(e);
+                log.error(e,  new SiddhiAppRuntimeException(e));
             }
         }
     }

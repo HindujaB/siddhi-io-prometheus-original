@@ -1,7 +1,26 @@
+/*
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.extension.siddhi.io.prometheus.source;
 
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
+import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 
 import java.util.ArrayList;
@@ -44,17 +63,15 @@ class PrometheusMetricAnalyser {
             }
         }
         if (index == -1) {
-            log.error(errorMessage);
-            throw new PrometheusSourceException(errorMessage);
+            log.error(errorMessage, new SiddhiAppRuntimeException(errorMessage));
         } else {
             assignHelpString(metricSamples, index);
             if (!checkMetricType(metricSamples, index)) {
-                log.error(errorMessage + " Metric type mismatching.");
-                throw new PrometheusSourceException(errorMessage);
+                log.error(errorMessage + " Metric type mismatching.",
+                        new SiddhiAppRuntimeException(errorMessage));
             } else {
                 List<String> retrievedMetrics = metricSamples.stream().filter(
                         response -> response.startsWith(metricName)).collect(Collectors.toList());
-//                ArrayList filteredMetrics = (ArrayList) ((ArrayList) retrievedMetrics).clone();
                 List<String> filteredMetrics = new ArrayList<>(retrievedMetrics);
                 if ((!metricJob.equals(PrometheusConstants.EMPTY_STRING) ||
                         !metricInstance.equals(PrometheusConstants.EMPTY_STRING) || !metricGroupingKey.isEmpty())) {
@@ -91,8 +108,8 @@ class PrometheusMetricAnalyser {
                         }
                     }
                     if (filteredMetrics.isEmpty()) {
-                        log.error(errorMessage + " Mismatching metric job, instance or grouping key.");
-                        throw new PrometheusSourceException(errorMessage);
+                        log.error(errorMessage + " Mismatching metric job, instance or grouping key.",
+                                new SiddhiAppRuntimeException(errorMessage));
                     }
                 }
                 lastValidSample.addAll(filteredMetrics);
@@ -131,13 +148,13 @@ class PrometheusMetricAnalyser {
                 metricMap.put(PrometheusConstants.MAP_SAMPLE_SUBTYPE, PrometheusConstants.SUBTYPE_SUM);
                 addLeAndQuantileKeys(labelValueMap);
             }
-            labelValueMap.remove(PrometheusConstants.METRIC_JOB);
-            labelValueMap.remove(PrometheusConstants.METRIC_INSTANCE);
-            if (!metricGroupingKey.isEmpty()) {
-                for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
-                    labelValueMap.remove(entry.getKey());
-                }
-            }
+//            labelValueMap.remove(PrometheusConstants.METRIC_JOB);
+//            labelValueMap.remove(PrometheusConstants.METRIC_INSTANCE);
+//            if (!metricGroupingKey.isEmpty()) {
+//                for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
+//                    labelValueMap.remove(entry.getKey());
+//                }
+//            }
             for (Map.Entry<String, String> entry : labelValueMap.entrySet()) {
                 metricMap.put(entry.getKey(), entry.getValue());
             }
@@ -163,7 +180,9 @@ class PrometheusMetricAnalyser {
         sourceEventListener.onEvent(metricMap, null);
     }
 
-
+    /**
+     * This method analyses a single line of the metric response and returns a label-value map
+      */
     private Map<String, String> filterMetric(String metricSample) {
         String[] labelList = metricSample.substring(metricSample.indexOf("{") + 1, metricSample.indexOf("}"))
                 .split(",");
