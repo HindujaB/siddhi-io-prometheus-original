@@ -372,7 +372,7 @@ public class PrometheusSinkTest {
                 "publish.mode='passThrough'," +
                 "metric.type='gauge'," +
                 "metric.help= 'PassThrough mode test'," +
-                "metric.name= 'test_metrics'," +
+                "metric.name= 'test_metrics_passThrough'," +
                 "@map(type = \'keyvalue\'))"
                 + "Define stream TestStream (metric_name String, metric_type String, help String, symbol String, " +
                 "price String, subtype String, value int);";
@@ -398,9 +398,9 @@ public class PrometheusSinkTest {
         siddhiAppRuntime.addCallback("TestStream", streamCallback);
         siddhiAppRuntime.start();
 
-        Object[] data1 = new Object[]{"test_metrics", "gauge", "help string", "WSO2", "78.8", "null",
+        Object[] data1 = new Object[]{"test_metrics_passThrough", "gauge", "help string", "WSO2", "78.8", "null",
                 100};
-        Object[] data2 = new Object[]{"test_metrics", "gauge", "help string", "IBM", "65.32", "null",
+        Object[] data2 = new Object[]{"test_metrics_passThrough", "gauge", "help string", "IBM", "65.32", "null",
                 125};
 
         List<Object[]> inputEvents = new ArrayList<>();
@@ -414,7 +414,7 @@ public class PrometheusSinkTest {
 
         Assert.assertTrue(eventArrived.get());
         Thread.sleep(1000);
-        getAndValidateMetrics("test_metrics");
+        getAndValidateMetrics("test_metrics_passThrough");
 
         if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
             Assert.assertEquals(eventCount.get(), 2);
@@ -667,7 +667,7 @@ public class PrometheusSinkTest {
      * @throws InterruptedException interrupted exception
      */
     @Test(sequential = true)
-    public void prometheusSourceTest5() throws InterruptedException {
+    public void prometheusSourceTestWithPrometheusSink() throws InterruptedException {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         log.info("----------------------------------------------------------------------------------");
@@ -749,18 +749,14 @@ public class PrometheusSinkTest {
 
         inputHandler.send(inputEvent1);
         inputHandler.send(inputEvent2);
-
-        Thread.sleep(2000);
-
+        Thread.sleep(4000);
         Assert.assertTrue(eventArrived.get());
         getAndValidateMetrics("passthrough_counter_reproduced");
-
         if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
             Assert.assertEquals(eventCount.get(), 2);
         } else {
             Assert.fail("Events does not match");
         }
-
         siddhiAppRuntime.shutdown();
     }
 

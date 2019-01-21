@@ -34,6 +34,8 @@ import org.wso2.siddhi.core.stream.input.source.Source;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 import org.wso2.siddhi.core.util.config.ConfigReader;
 import org.wso2.siddhi.core.util.transport.OptionHolder;
+import org.wso2.siddhi.query.api.definition.Attribute;
+import org.wso2.siddhi.query.api.exception.AttributeNotExistException;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -106,7 +108,13 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                 "\n" +
                 "schemes for scraping metrics through http requests. The user can retrieve metrics of types \n" +
                 "counter, gauge, histogram and summary. The required Prometheus metric can be specified \n" +
-                "inside the source configuration using the metric name, job name, instance and grouping keys.\n",
+                "inside the source configuration using the metric name, job name, instance and grouping keys.\n" +
+                "Since the source retrieves the metrics from a text response from the target, supports key-value " +
+                "mapping for histogram and summary metric types, it is advised to use \'string\' attribute type for " +
+                "the attributes that correspond the Prometheus metric labels. The attribute that  " +
+                " the exported metrics must" +
+                " not contain label names starts with \\\"bucket_\\\",\\\"quantile_\\\", \" +\n" +
+                "                \"\\\"sum\\\" or \\\"count\\\".\"",
         parameters = {
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
@@ -154,6 +162,15 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                         description = "This property specifies the type of the Prometheus metric that is required. " +
                                 "needed to be fetched. \n The supported metric types are \'counter\', \'gauge\'," +
                                 " \'histogram\' and \'summary\'. ",
+                        type = {DataType.STRING}
+                ),
+                @Parameter(
+                        name = "value.attribute",
+                        description = "The name of the attribute in stream definition which specifies the metric " +
+                                "value. The defined value attribute must be included inside the stream attributes. \n" +
+                                "By default, the value attribute is specified as \'value\' ",
+                        optional = true,
+                        defaultValue = "value",
                         type = {DataType.STRING}
                 ),
                 @Parameter(
@@ -233,7 +250,8 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                 @Example(
                         syntax = "@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', \n" +
                                 "metric.type= 'summary', metric.name= 'sweet_production', @map(type= ‘keyvalue’))\n" +
-                                "define stream FooStream(name string, quantity int, value double);\n",
+                                "define stream FooStream(metric_name string, metric_type string, help string,\n " +
+                                "subtype string, name string, quantity string, quantile string, value double);\n",
                         description = "In this example, the prometheus source will make an http request to the " +
                                 "\'target.url\' and analyse the response. From the analysed response, the source " +
                                 "retrieves the Prometheus summary metrics with name 'sweet_production' and " +
@@ -355,6 +373,7 @@ public class PrometheusSource extends Source {
     private String streamName;
     private String scheme;
     private double scrapeInterval;
+    private static Attribute.Type valueType;
 
     private PrometheusScraper prometheusScraper;
 
@@ -377,6 +396,7 @@ public class PrometheusSource extends Source {
         siddhiAppName = siddhiAppContext.getName();
         streamName = sourceEventListener.getStreamDefinition().getId();
         PrometheusSourceUtil.setStreamName(streamName);
+
         initPrometheusScraper(optionHolder, configReader, sourceEventListener, siddhiAppContext);
         configureMetricAnalyser(optionHolder, configReader, siddhiAppContext);
     }
@@ -456,7 +476,7 @@ public class PrometheusSource extends Source {
                                          SiddhiAppContext siddhiAppContext) {
         String metricName = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_NAME, streamName);
         MetricType metricType = MetricType.assignMetricType(optionHolder.
-                validateAndGetStaticValue(PrometheusConstants.METRIC_TYPE),
+                        validateAndGetStaticValue(PrometheusConstants.METRIC_TYPE),
                 streamName);
         String job = optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_JOB,
                 configReader.readConfig(PrometheusConstants.METRIC_JOB_CONFIGURATION, EMPTY_STRING));
@@ -465,9 +485,24 @@ public class PrometheusSource extends Source {
         Map<String, String> groupingKeyMap = PrometheusSourceUtil.populateStringMap(
                 optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_GROUPING_KEY,
                         PrometheusConstants.EMPTY_STRING));
+        String valueAttribute = optionHolder.validateAndGetStaticValue(
+                PrometheusConstants.VALUE_ATTRIBUTE, PrometheusConstants.VALUE_STRING).trim();
+        Attribute.Type valueType;
+        try {
+            valueType = getStreamDefinition().getAttributeType(valueAttribute);
+            if (valueType.equals(Attribute.Type.STRING) || valueType.equals(Attribute.Type.BOOL) ||
+                    valueType.equals(Attribute.Type.OBJECT)) {
+                throw new SiddhiAppCreationException("The field value attribute \'" + valueAttribute + "\' contains " +
+                        "unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'"
+                        + streamName + "\'");
+            }
+        } catch (AttributeNotExistException exception) {
+            throw new SiddhiAppCreationException("The value attribute \'" + valueAttribute + "\' is not found " +
+                    "in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamName + "\'");
+        }
 
-
-        prometheusScraper.setMetricProperties(metricName, metricType, job, instance, groupingKeyMap);
+        prometheusScraper.setMetricProperties(metricName, metricType, job, instance, groupingKeyMap, valueAttribute,
+                valueType);
     }
 
     private void validateNegativeValue(double value) {
@@ -562,5 +597,6 @@ public class PrometheusSource extends Source {
         prometheusScraper.setLastValidResponse((List<String>) map.get(PrometheusConstants.LAST_RETRIEVED_SAMPLES));
 
     }
+
 }
 

@@ -240,8 +240,8 @@ public class SourceValidationTestcase {
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp =
                     ERROR_MESSAGE + "Invalid header format found in " + PrometheusConstants.PROMETHEUS_SOURCE + " " +
-                    "associated with stream \'(.*)\'. Please include them as " +
-                    "'key1:value1', 'key2:value2',..")
+                            "associated with stream \'(.*)\'. Please include them as " +
+                            "'key1:value1', 'key2:value2',..")
     public void prometheusValidationTest8() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
 
@@ -284,6 +284,54 @@ public class SourceValidationTestcase {
                 "@map(type = 'keyvalue'))" +
                 "Define stream SourceTestStream (metric_name String, metric_type String, help String, name String," +
                 " age String, subtype String, le String, value double);";
+        startSiddhiApp(sourceStream);
+    }
+
+    @Test(expectedExceptions = SiddhiAppCreationException.class,
+            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The value attribute \'(.*)\' is not found " +
+                    "in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'(.*)\'")
+    public void prometheusValidationTest10() throws InterruptedException {
+        SiddhiManager siddhiManager = new SiddhiManager();
+
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Source test without value attribute configuration or" +
+                " 'value' attribute in stream definition");
+        log.info("----------------------------------------------------------------------------------");
+
+        String valueAttribute = "value";
+        String sourceStream = "@source(type='prometheus'," +
+                "target.url=\'" + targetURL + "\', " +
+                "scheme = 'http'," +
+                "scrape.interval = '3'," +
+                "value.attribute = \'" + valueAttribute + "\'," +
+                "scrape.timeout = '2'," +
+                "metric.type='histogram'," +
+                "metric.name='test_histogram'," +
+                "@map(type = 'keyvalue'))" +
+                "Define stream SourceTestStream (metric_name String, metric_type String, help String, name String," +
+                " age String, subtype String, le String);";
+        startSiddhiApp(sourceStream);
+    }
+
+    @Test(expectedExceptions = SiddhiAppCreationException.class,
+            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The field value attribute \'(.*)\' contains " +
+                    "unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'(.*)\'")
+    public void prometheusValidationTest11() throws InterruptedException {
+        SiddhiManager siddhiManager = new SiddhiManager();
+
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Sink test without value attribute in unsupported type");
+        log.info("----------------------------------------------------------------------------------");
+        String sourceStream = "@source(type='prometheus'," +
+                "target.url=\'" + targetURL + "\', " +
+                "scheme = 'http'," +
+                "scrape.interval = '3'," +
+                "scrape.timeout = '2'," +
+                "metric.type='histogram'," +
+                "metric.name='test_histogram'," +
+                "@map(type = 'keyvalue'))" +
+                "Define stream SourceTestStream (metric_name String, metric_type String, help String, name String," +
+                " age String, subtype String, le String, value string);";
         startSiddhiApp(sourceStream);
     }
 }

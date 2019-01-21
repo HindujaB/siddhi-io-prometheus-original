@@ -77,31 +77,6 @@
             <version>${tapestry-json.version}</version>
             <scope>test</scope>
         </dependency>
-        <!--<dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-buffer</artifactId>
-            <version>4.1.27.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-handler-proxy</artifactId>
-            <version>5.0.0.Alpha2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.transport.http</groupId>
-            <artifactId>org.wso2.transport.http.netty</artifactId>
-            <version>6.0.163</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.messaging</groupId>
-            <artifactId>org.wso2.carbon.messaging</artifactId>
-            <version>3.0.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.analytics-common</groupId>
-            <artifactId>org.wso2.carbon.analytics.idp.client</artifactId>
-            <version>6.0.62</version>
-        </dependency>-->
         <dependency>
             <groupId>org.wso2.transport.http</groupId>
             <artifactId>org.wso2.transport.http.netty</artifactId>
@@ -109,12 +84,6 @@
         <dependency>
             <groupId>org.wso2.carbon.messaging</groupId>
             <artifactId>org.wso2.carbon.messaging</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.github.openfeign</groupId>
-            <artifactId>feign-httpclient</artifactId>
-            <version>10.0.1</version>
         </dependency>
     </dependencies>
     <profiles>
@@ -186,7 +155,7 @@
                                                     <port>9090</port>
                                                 </ports>
                                             </tcp>
-                                            <time>600000</time>
+                                            <time>6000</time>
                                         </wait>
                                     </run>
                                 </image>
@@ -205,7 +174,7 @@
                                                     <port>9091</port>
                                                 </ports>
                                             </tcp>
-                                            <time>600000</time>
+                                            <time>6000</time>
                                         </wait>
                                     </run>
                                 </image>
@@ -241,11 +210,10 @@
                                 <HOST_NAME>localhost</HOST_NAME>
                             </environmentVariables>
                             <suiteXmlFiles>
-                                <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                                <suiteXmlFile>src/test/resources/dockerTest.xml</suiteXmlFile>
                             </suiteXmlFiles>
                         </configuration>
                     </plugin>
-
                 </plugins>
             </build>
         </profile>
@@ -273,6 +241,8 @@
                     <suiteXmlFiles>
                         <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
+                    <argLine>${jcoverage.command}</argLine>
+                    <skip>${skip.surefire.test}</skip>
                 </configuration>
             </plugin>
             <plugin>
@@ -300,6 +270,22 @@
                         </Private-Package>
                     </instructions>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>jacoco-initialize</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <destFile>${basedir}/target/coverage-reports/jacoco.exec</destFile>
+                            <propertyName>jcoverage.command</propertyName>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

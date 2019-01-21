@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
+import org.wso2.siddhi.query.api.definition.Attribute;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +38,8 @@ import java.util.stream.Collectors;
 class PrometheusMetricAnalyser {
 
     private static final Logger log = Logger.getLogger(PrometheusMetricAnalyser.class);
+    Attribute.Type valueType;
+    String valueAttribute;
     private String metricName;
     String metricJob;
     String metricInstance;
@@ -132,7 +135,7 @@ class PrometheusMetricAnalyser {
             metricMap.put(PrometheusConstants.MAP_HELP, metricHelp);
 
             String sampleName = sampleSingleLine.substring(0, sampleSingleLine.indexOf("{"));
-            Double value = Double.parseDouble(sampleSingleLine.substring(sampleSingleLine.indexOf("}") + 1));
+            Object value = setMetricValue(sampleSingleLine.substring(sampleSingleLine.indexOf("}") + 1).trim());
             Map<String, String> labelValueMap = filterMetric(sampleSingleLine);
             if (sampleName.equals(metricName)) {
                 metricMap.put(PrometheusConstants.MAP_SAMPLE_SUBTYPE, PrometheusConstants.SUBTYPE_NULL);
@@ -148,18 +151,34 @@ class PrometheusMetricAnalyser {
                 metricMap.put(PrometheusConstants.MAP_SAMPLE_SUBTYPE, PrometheusConstants.SUBTYPE_SUM);
                 addLeAndQuantileKeys(labelValueMap);
             }
-//            labelValueMap.remove(PrometheusConstants.METRIC_JOB);
-//            labelValueMap.remove(PrometheusConstants.METRIC_INSTANCE);
-//            if (!metricGroupingKey.isEmpty()) {
-//                for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
-//                    labelValueMap.remove(entry.getKey());
-//                }
-//            }
             for (Map.Entry<String, String> entry : labelValueMap.entrySet()) {
                 metricMap.put(entry.getKey(), entry.getValue());
             }
-            metricMap.put(PrometheusConstants.MAP_SAMPLE_VALUE, value);
+            metricMap.put(valueAttribute, value);
             handleEvent(metricMap);
+        }
+    }
+
+    private Object setMetricValue(String valueString) {
+        switch (valueType) {
+            case INT: {
+                valueString = valueString.substring(0, valueString.indexOf("."));
+                return Integer.parseInt(valueString);
+            }
+            case LONG: {
+                valueString = valueString.substring(0, valueString.indexOf("."));
+                return Long.parseLong(valueString);
+            }
+            case FLOAT: {
+                return Float.parseFloat(valueString);
+            }
+            case DOUBLE: {
+                return Double.parseDouble(valueString);
+            }
+            default: {
+                //default will never be executed
+                return null;
+            }
         }
     }
 
@@ -182,7 +201,7 @@ class PrometheusMetricAnalyser {
 
     /**
      * This method analyses a single line of the metric response and returns a label-value map
-      */
+     */
     private Map<String, String> filterMetric(String metricSample) {
         String[] labelList = metricSample.substring(metricSample.indexOf("{") + 1, metricSample.indexOf("}"))
                 .split(",");

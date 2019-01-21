@@ -133,11 +133,10 @@ public class PrometheusSourceTest {
         List<Object[]> eventList = new ArrayList<>();
         switch (metricType.toUpperCase(Locale.ENGLISH)) {
             case "COUNTER": {
-
                 eventList.add(new Object[]{"counter_test", "counter", "unit test - for counter metric", "WSO2",
-                        "78.8", "null", 100.0});
+                        "78.8", "null", 100});
                 eventList.add(new Object[]{"counter_test", "counter", "unit test - for counter metric", "IBM",
-                        "65.32", "null", 125.0});
+                        "65.32", "null", 125});
                 break;
             }
             case "GAUGE": {
@@ -194,10 +193,10 @@ public class PrometheusSourceTest {
                 "metric.name='counter_test'," +
                 "@map(type = 'keyvalue'))" +
                 "Define stream SourceMapTestStream (metric_name String, metric_type String," +
-                " help String, symbol String, price String, subtype String, value double);";
+                " help String, symbol String, price String, subtype String, value int);";
         String outputStream1 = " @sink(type='log')" +
                 "define stream OutputStream (metric_name String, metric_type String, help String," +
-                " symbol String, price String, subtype String, value double);";
+                " symbol String, price String, subtype String, value int);";
         String query1 = (
                 "@info(name = 'query1') "
                         + "from SourceMapTestStream\n" +
@@ -211,6 +210,7 @@ public class PrometheusSourceTest {
                 for (Event event : events) {
                     eventCount.getAndIncrement();
                     eventArrived.set(true);
+                    receivedEvents.add(event.getData());
                 }
             }
         };
@@ -222,7 +222,7 @@ public class PrometheusSourceTest {
             public void receive(Event[] events) {
                 for (Event event : events) {
                     eventArrived.set(true);
-                    receivedEvents.add(event.getData());
+
                 }
             }
         };
@@ -457,8 +457,8 @@ public class PrometheusSourceTest {
                 "@source(type='prometheus'," +
                 "scheme = 'http'," +
                 "target.url=\'" + targetURL + "\', " +
-                "scrape.interval = '1'," +
-                "scrape.timeout = '0.5'," +
+                "scrape.interval = '10'," +
+                "scrape.timeout = '15'," +
                 "metric.type='" + metricType + "'," +
                 "metric.name='histogram_test'," +
                 "@map(type = 'keyvalue'))" +
@@ -505,7 +505,7 @@ public class PrometheusSourceTest {
         siddhiAppRuntime1.start();
 
         // wait for some time
-        Thread.sleep(5000);
+        Thread.sleep(2000);
         // initiate a checkpointing task
         Future perisistor = siddhiAppRuntime1.persist().getFuture();
         // waits till the checkpointing task is done
@@ -513,7 +513,7 @@ public class PrometheusSourceTest {
             Thread.sleep(100);
         }
         // let few more events to be published
-        Thread.sleep(5000);
+        Thread.sleep(2000);
         Assert.assertTrue(eventArrived.get());
         // assert the count
         Assert.assertEquals(12, eventCount.get());
@@ -527,7 +527,7 @@ public class PrometheusSourceTest {
         } catch (InterruptedException e) {
             log.error(e);
         }
-        Thread.sleep(5000);
+        Thread.sleep(4000);
         // recreate the siddhi app
         siddhiAppRuntime1 = siddhiManager.createSiddhiAppRuntime(siddhiApp1);
         siddhiAppRuntime1.addCallback("OutputStream", new StreamCallback() {

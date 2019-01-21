@@ -202,11 +202,11 @@ define stream InventoryLevelStream (Name String, value int);
 
 ### prometheus *<a target="_blank" href="https://wso2.github.io/siddhi/documentation/siddhi-4.0/#source">(Source)</a>*
 
-<p style="word-wrap: break-word">The source consumes events as exported Prometheus metrics from the specified url through <br>http requests. According to the source configuration, it analyses metrics from the text response <br>and send them as Siddhi events with key-value mapping. Prometheus source supports HTTP and HTTPS <br>schemes for scraping metrics through http requests. The user can retrieve metrics of types <br>counter, gauge, histogram and summary. The required Prometheus metric can be specified <br>inside the source configuration using the metric name, job name, instance and grouping keys.<br>&nbsp;Since the source supports key-value mapping for histogram and summary metric types, <br>It is advised that the exported metrics must not contain label names starts with "bucket_","quantile_", "sum" or "count".</p>
+<p style="word-wrap: break-word">The source consumes Prometheus metrics as Siddhi events which are being exported from the <br>specified url through http requests. According to the source configuration, it analyses metrics from the text response <br>and send them as Siddhi events through key-value mapping. Prometheus source supports HTTP and HTTPS <br>schemes for scraping metrics through http requests. The user can retrieve metrics of types <br>counter, gauge, histogram and summary. The required Prometheus metric can be specified <br>inside the source configuration using the metric name, job name, instance and grouping keys.<br>Since the source retrieves the metrics from a text response from the target, supports key-value mapping for histogram and summary metric types, it is advised to use 'string' attribute type for the attributes that correspond the Prometheus metric labels. The attribute that   the exported metrics must not contain label names starts with \"bucket_\",\"quantile_\", " +<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"\"sum\" or \"count\"."</p>
 
 <span id="syntax" class="md-typeset" style="display: block; font-weight: bold;">Syntax</span>
 ```
-@source(type="prometheus", target.url="<STRING>", scrape.interval="<INT>", scrape.timeout="<INT>", scheme="<STRING>", metric.name="<STRING>", metric.type="<STRING>", username="<STRING>", password="<STRING>", client.truststore.file="<STRING>", client.truststore.password="<STRING>", headers="<STRING>", job="<STRING>", instance="<STRING>", grouping.key="<STRING>", labels="<STRING>", @map(...)))
+@source(type="prometheus", target.url="<STRING>", scrape.interval="<INT>", scrape.timeout="<INT>", scheme="<STRING>", metric.name="<STRING>", metric.type="<STRING>", value.attribute="<STRING>", username="<STRING>", password="<STRING>", client.truststore.file="<STRING>", client.truststore.password="<STRING>", headers="<STRING>", job="<STRING>", instance="<STRING>", grouping.key="<STRING>", @map(...)))
 ```
 
 <span id="query-parameters" class="md-typeset" style="display: block; color: rgba(0, 0, 0, 0.54); font-size: 12.8px; font-weight: bold;">QUERY PARAMETERS</span>
@@ -222,14 +222,14 @@ define stream InventoryLevelStream (Name String, value int);
     <tr>
         <td style="vertical-align: top">target.url</td>
         <td style="vertical-align: top; word-wrap: break-word">This property specifies the target url where the Prometheus metrics are exported in text format.</td>
-        <td style="vertical-align: top"></td>
+        <td style="vertical-align: top">http://localhost:9090/metrics</td>
         <td style="vertical-align: top">STRING</td>
-        <td style="vertical-align: top">No</td>
+        <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
     </tr>
     <tr>
         <td style="vertical-align: top">scrape.interval</td>
-        <td style="vertical-align: top; word-wrap: break-word">This property specifies the time interval that the source should make an HTTP scrape request to the  provided target url in seconds. By default, the source will scrape metrics within 60 seconds interval.</td>
+        <td style="vertical-align: top; word-wrap: break-word">This property specifies the time interval that the source should make an HTTP request to the  provided target url (in seconds). By default, the source will scrape metrics within 60 seconds interval.</td>
         <td style="vertical-align: top">60</td>
         <td style="vertical-align: top">INT</td>
         <td style="vertical-align: top">Yes</td>
@@ -265,6 +265,14 @@ define stream InventoryLevelStream (Name String, value int);
         <td style="vertical-align: top"></td>
         <td style="vertical-align: top">STRING</td>
         <td style="vertical-align: top">No</td>
+        <td style="vertical-align: top">No</td>
+    </tr>
+    <tr>
+        <td style="vertical-align: top">value.attribute</td>
+        <td style="vertical-align: top; word-wrap: break-word">The name of the attribute in stream definition which specifies the metric value. The defined value attribute must be included inside the stream attributes. <br>By default, the value attribute is specified as 'value' </td>
+        <td style="vertical-align: top">value</td>
+        <td style="vertical-align: top">STRING</td>
+        <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
     </tr>
     <tr>
@@ -331,14 +339,6 @@ define stream InventoryLevelStream (Name String, value int);
         <td style="vertical-align: top">Yes</td>
         <td style="vertical-align: top">No</td>
     </tr>
-    <tr>
-        <td style="vertical-align: top">labels</td>
-        <td style="vertical-align: top; word-wrap: break-word"> This parameter specifies the Prometheus Metric labels and values that are needed to identify the required metrics<br>The format of the supported input is as follows,<br>'label1:value1','label2:value2'. </td>
-        <td style="vertical-align: top"> </td>
-        <td style="vertical-align: top">STRING</td>
-        <td style="vertical-align: top">Yes</td>
-        <td style="vertical-align: top">No</td>
-    </tr>
 </table>
 
 <span id="system-parameters" class="md-typeset" style="display: block; font-weight: bold;">System Parameters</span>
@@ -352,7 +352,7 @@ define stream InventoryLevelStream (Name String, value int);
     <tr>
         <td style="vertical-align: top">targetURL</td>
         <td style="vertical-align: top; word-wrap: break-word">This property configure the URL of the target where the Prometheus metrics are exported in text format.</td>
-        <td style="vertical-align: top">'http://localhost:9080/metrics'</td>
+        <td style="vertical-align: top">'http://localhost:9090/metrics'</td>
         <td style="vertical-align: top">Any valid URL which exports Prometheus metrics in text format</td>
     </tr>
     <tr>
@@ -388,13 +388,13 @@ define stream InventoryLevelStream (Name String, value int);
     <tr>
         <td style="vertical-align: top">trustStoreFile</td>
         <td style="vertical-align: top; word-wrap: break-word">The default file path to the location of truststore that the client needs to send for HTTPS requests through 'HTTPS' protocol.</td>
-        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">${carbon.home}/resources/security/client-truststore.jks</td>
         <td style="vertical-align: top">Any valid path for the truststore file</td>
     </tr>
     <tr>
         <td style="vertical-align: top">trustStorePassword</td>
         <td style="vertical-align: top; word-wrap: break-word">The default password for the client-truststore to send HTTPS requests.</td>
-        <td style="vertical-align: top"> </td>
+        <td style="vertical-align: top">wso2carbon</td>
         <td style="vertical-align: top">Any string</td>
     </tr>
     <tr>
@@ -428,8 +428,9 @@ define stream InventoryLevelStream (Name String, value int);
 ```
 @source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', 
 metric.type= 'summary', metric.name= 'sweet_production', @map(type= ‘keyvalue’))
-define stream FooStream(name string, quantity int, value double);
+define stream FooStream(metric_name string, metric_type string, help string,
+ subtype string, name string, quantity string, quantile string, value double);
 
 ```
-<p style="word-wrap: break-word">In this example, the prometheus source will make an http request to the 'target.url' and analyse the response. From the analysed response, the source retrieves the Prometheus summary metrics with name 'sweet_production' and converts the filtered metrics into Siddhi events using the key-value mapper.<br>The generated map will have keys and values as follows, <br>&nbsp;&nbsp;metric_name  -&gt; &lt;name_of_metric&gt;<br>&nbsp;&nbsp;metric_type  -&gt; &lt;type_of_metric&gt;<br>&nbsp;&nbsp;help  -&gt; &lt;help_string_of_metric&gt;<br>&nbsp;&nbsp;subtype  -&gt; &lt;'sum'/'count'/'null'&gt;<br>&nbsp;&nbsp;name -&gt; &lt;value_of_label_name&gt;  quantity -&gt; &lt;value_of_label_quantity&gt;  quantile  -&gt; &lt;value of the quantile&gt;  value -&gt; &lt;value_of_metric&gt;</p>
+<p style="word-wrap: break-word">In this example, the prometheus source will make an http request to the 'target.url' and analyse the response. From the analysed response, the source retrieves the Prometheus summary metrics with name 'sweet_production' and converts the filtered metrics into Siddhi events using the key-value mapper.<br>The generated map will have keys and values as follows, <br>&nbsp;&nbsp;metric_name  -&gt; &lt;name_of_metric&gt;<br>&nbsp;&nbsp;metric_type  -&gt; &lt;type_of_metric&gt;<br>&nbsp;&nbsp;help  -&gt; &lt;help_string_of_metric&gt;<br>&nbsp;&nbsp;subtype  -&gt; &lt;'sum'/'count'/'null'&gt;<br>&nbsp;&nbsp;name -&gt; &lt;value_of_label_name&gt;<br>&nbsp;&nbsp;quantity -&gt; &lt;value_of_label_quantity&gt;<br>&nbsp;&nbsp;quantile  -&gt; &lt;value of the quantile&gt;<br>&nbsp;&nbsp;value -&gt; &lt;value_of_metric&gt;<br></p>
 

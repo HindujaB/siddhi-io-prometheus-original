@@ -31,6 +31,7 @@ import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSourceUtil;
 import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
+import org.wso2.siddhi.query.api.definition.Attribute;
 import org.wso2.transport.http.netty.common.Constants;
 import org.wso2.transport.http.netty.config.SenderConfiguration;
 import org.wso2.transport.http.netty.contract.HttpClientConnector;
@@ -56,7 +57,7 @@ import java.util.stream.Collectors;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 
 /**
- *This class creates and sends an http request to the target-URL according to user inputs. And it transfers the
+ * This class creates and sends an http request to the target-URL according to user inputs. And it transfers the
  * retrieved data to {@code PrometheusMetricAnalyser} class.
  */
 public class PrometheusScraper implements Runnable {
@@ -85,11 +86,14 @@ public class PrometheusScraper implements Runnable {
     }
 
     void setMetricProperties(String metricName, MetricType metricType, String metricJob,
-                                                 String metricInstance, Map<String, String> metricGroupingKey) {
+                             String metricInstance, Map<String, String> metricGroupingKey, String valueAttribute,
+                             Attribute.Type valueType) {
         this.metricAnalyser = new PrometheusMetricAnalyser(metricName, metricType, sourceEventListener);
         metricAnalyser.metricJob = metricJob;
         metricAnalyser.metricInstance = metricInstance;
         metricAnalyser.metricGroupingKey = metricGroupingKey;
+        metricAnalyser.valueAttribute = valueAttribute;
+        metricAnalyser.valueType = valueType;
     }
 
 
@@ -209,8 +213,9 @@ public class PrometheusScraper implements Runnable {
         if (!isPaused) {
             try {
                 retrieveMetricSamples();
-            } catch (IOException e) {
-                log.error(e,  new SiddhiAppRuntimeException(e));
+            } catch (Throwable e) {
+                log.error("Error while retrieve and analyse metrics. \nError : " + e,
+                        new SiddhiAppRuntimeException(e));
             }
         }
     }
