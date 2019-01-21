@@ -37,24 +37,28 @@ import org.wso2.transport.http.netty.message.HttpCarbonResponse;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * HTTP connector listener for Siddhi-Prometheus-sink passThrough mode.
  */
 public class PrometheusHTTPServerListener implements HttpConnectorListener {
     private static final Logger log = Logger.getLogger(PrometheusHTTPServerListener.class);
-    private String payload = PrometheusConstants.EMPTY_STRING;
     private HTTPCarbonMessage httpResponse = generateResponseMessage();
     private final int contentBufferSize = 8192;
     private ByteBuf buffer = Unpooled.buffer(contentBufferSize);
     private HttpContent httpContent = new DefaultLastHttpContent(buffer);
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
 
     @Override
     public void onMessage(HTTPCarbonMessage httpRequest) {
-        if (PrometheusConstants.HTTP_SCHEME.equals(httpRequest.getProperty(Constants.PROTOCOL))) {
-            sendResponse(httpRequest);
-        }
+        executor.execute(() -> {
+            if (PrometheusConstants.HTTP_SCHEME.equals(httpRequest.getProperty(Constants.PROTOCOL))) {
+                sendResponse(httpRequest);
+            }
+        });
     }
 
     private HTTPCarbonMessage generateResponseMessage() {
@@ -99,6 +103,10 @@ public class PrometheusHTTPServerListener implements HttpConnectorListener {
     @Override
     public void onError(Throwable throwable) {
 
+    }
+
+    void disconnect() {
+        executor.shutdown();
     }
 
 }

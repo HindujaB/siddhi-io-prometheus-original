@@ -16,15 +16,15 @@ import static java.lang.Double.parseDouble;
 
 /**
  * Generates response for HTTP server from the received events Siddhi-Prometheus-sink passThrough mode.
- */
+*/
 class ResponseGenerator {
     private static final Logger log = Logger.getLogger(ResponseGenerator.class);
     private String metricName;
     private Collector.Type metricType;
     private String valueAttribute;
     private Map<Integer, Map<String, Object>> eventMap = new LinkedHashMap<>();
-    private static Map<Integer, List<Map<String, Object>>> eventChunkMap = new LinkedHashMap<>();
-    private static List<Map<String, Object>> eventChunk = new ArrayList<>();
+    private Map<Integer, List<Map<String, Object>>> eventChunkMap = new LinkedHashMap<>();
+    private List<Map<String, Object>> eventChunk = new ArrayList<>();     //For Histogram and Summary metrics
     private String metricHelp;
 
     void setMetricProperties(String metricName, Collector.Type metricType, String metricHelp,
@@ -221,5 +221,11 @@ class ResponseGenerator {
                 "# TYPE " + metricName + PrometheusConstants.SPACE_STRING +
                 PrometheusSinkUtil.getMetricTypeString(metricType) +
                 System.lineSeparator();
+    }
+
+    void clearMaps() {
+        eventChunk.clear();
+        eventChunkMap.clear();
+        eventMap.clear();
     }
 }

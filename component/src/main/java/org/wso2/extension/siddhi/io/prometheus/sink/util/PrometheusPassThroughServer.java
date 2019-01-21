@@ -21,6 +21,7 @@ package org.wso2.extension.siddhi.io.prometheus.sink.util;
 import io.prometheus.client.Collector;
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
+import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.transport.http.netty.common.Constants;
 import org.wso2.transport.http.netty.config.ListenerConfiguration;
 import org.wso2.transport.http.netty.contract.HttpWsConnectorFactory;
@@ -43,7 +44,7 @@ public class PrometheusPassThroughServer {
     private static List<String> recordedMetricsList = new ArrayList<>();
     private static String payloadStack = PrometheusConstants.EMPTY_STRING;
     private URL serverURL;
-    private ServerConnector serverConnector;
+    private HttpWsConnectorFactory connectorFactory;
     private static ResponseGenerator responseGenerator = new ResponseGenerator();
     private PrometheusHTTPServerListener serverListener;
 
@@ -59,9 +60,9 @@ public class PrometheusPassThroughServer {
     }
 
     public void start() {
-        HttpWsConnectorFactory connectorFactory = new DefaultHttpWsConnectorFactory();
+        connectorFactory = new DefaultHttpWsConnectorFactory();
         ListenerConfiguration listenerConfiguration = getListenerConfiguration(serverURL);
-        serverConnector = connectorFactory
+        ServerConnector serverConnector = connectorFactory
                 .createServerConnector(new ServerBootstrapConfiguration(new HashMap<>()), listenerConfiguration);
         ServerConnectorFuture serverConnectorFuture = serverConnector.start();
         serverConnectorFuture.setHttpConnectorListener(serverListener);
@@ -77,9 +78,13 @@ public class PrometheusPassThroughServer {
     }
 
     public void stop() {
-        if (serverConnector != null) {
-            serverConnector.stop();
+        serverListener.disconnect();
+        try {
+            connectorFactory.shutdown();
+        } catch (InterruptedException e) {
+            log.error(e, new SiddhiAppRuntimeException(e));
         }
+        responseGenerator.clearMaps();
     }
 
 
