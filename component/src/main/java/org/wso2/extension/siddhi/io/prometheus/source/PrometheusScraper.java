@@ -44,6 +44,7 @@ import org.wso2.transport.http.netty.message.HttpMessageDataStreamer;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -75,6 +76,8 @@ public class PrometheusScraper implements Runnable {
     private boolean isPaused = false;
     private List<String> metricSamples = new ArrayList<>();
     private SourceEventListener sourceEventListener;
+    private HttpClientConnector httpClientConnector;
+    private Map<String, String> urlProperties;
 
     PrometheusScraper(String targetURL, String scheme, double scrapeTimeout,
                       List<Header> headers, SourceEventListener sourceEventListener) {
@@ -109,8 +112,12 @@ public class PrometheusScraper implements Runnable {
         }
     }
 
-    private void retrieveMetricSamples() throws IOException {
-        Map<String, String> urlProperties = PrometheusSourceUtil.getURLProperties(targetURL, scheme);
+    void connectHTTPClient() {
+        try {
+            urlProperties = PrometheusSourceUtil.getURLProperties(targetURL, scheme);
+        } catch (MalformedURLException e) {
+            log.error("Error in target URL format : " + e);
+        }
         SenderConfiguration senderConfiguration = PrometheusSourceUtil.getSenderConfigurations(urlProperties,
                 clientStoreFile, clientStorePassword);
         if (scrapeTimeout != -1) {
@@ -121,8 +128,11 @@ public class PrometheusScraper implements Runnable {
             headers.add(new Header(PrometheusConstants.AUTHORIZATION_HEADER, basicAuthHeader));
         }
         HttpWsConnectorFactory httpConnectorFactory = new DefaultHttpWsConnectorFactory();
-        HttpClientConnector httpClientConnector = httpConnectorFactory.createHttpClientConnector(new HashMap<>(),
+        httpClientConnector = httpConnectorFactory.createHttpClientConnector(new HashMap<>(),
                 senderConfiguration);
+    }
+
+    private void retrieveMetricSamples() throws IOException {
         List<String> responseMetrics = sendRequest(httpClientConnector, urlProperties, headers);
         String errorMessage = PrometheusConstants.EMPTY_STRING;
         if (responseMetrics == null) {

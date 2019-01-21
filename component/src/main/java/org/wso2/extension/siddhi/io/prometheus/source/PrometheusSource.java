@@ -563,6 +563,7 @@ public class PrometheusSource extends Source {
      */
     @Override
     public void connect(ConnectionCallback connectionCallback) throws ConnectionUnavailableException {
+        prometheusScraper.connectHTTPClient();
         executorService.scheduleWithFixedDelay(prometheusScraper, 0, (long) scrapeInterval, TimeUnit.SECONDS);
     }
 
