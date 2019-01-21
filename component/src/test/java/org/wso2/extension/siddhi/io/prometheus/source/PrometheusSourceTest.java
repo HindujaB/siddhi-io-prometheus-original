@@ -527,7 +527,7 @@ public class PrometheusSourceTest {
         } catch (InterruptedException e) {
             log.error(e);
         }
-        Thread.sleep(4000);
+        Thread.sleep(3000);
         // recreate the siddhi app
         siddhiAppRuntime1 = siddhiManager.createSiddhiAppRuntime(siddhiApp1);
         siddhiAppRuntime1.addCallback("OutputStream", new StreamCallback() {
@@ -544,13 +544,13 @@ public class PrometheusSourceTest {
         siddhiAppRuntime1.start();
         // immediately trigger a restore from last revision
         siddhiAppRuntime1.restoreLastRevision();
-        Thread.sleep(2000);
+        Thread.sleep(5000);
 
         // waits till all the events are published
         while (!eventSender.isDone()) {
             Thread.sleep(2000);
         }
-        Thread.sleep(2000);
+        Thread.sleep(6000);
         Assert.assertTrue(eventArrived.get());
         // assert the count
         Assert.assertEquals(24, eventCount.get());

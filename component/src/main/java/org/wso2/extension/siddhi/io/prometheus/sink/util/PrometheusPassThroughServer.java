@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.lang.Double.NaN;
 import static java.lang.Double.parseDouble;
 
 /**
@@ -47,7 +48,6 @@ public class PrometheusPassThroughServer {
     private static final Logger log = Logger.getLogger(PrometheusPassThroughServer.class);
     private static List<String> recordedMetricsList = new ArrayList<>();
     private static String payloadStack = PrometheusConstants.EMPTY_STRING;
-    //    private static List<String> labelValues = new ArrayList<>();
     private URL serverURL;
     private ServerConnector serverConnector;
     private static ResponseGenerator responseGenerator = new ResponseGenerator();
@@ -74,7 +74,7 @@ public class PrometheusPassThroughServer {
         try {
             serverConnectorFuture.sync();
         } catch (InterruptedException e) {
-            log.error("Thread Interrupted while sleeping ", e);
+            log.error("Thread Interrupted while sync ", e);
         }
     }
 
@@ -172,7 +172,7 @@ public class PrometheusPassThroughServer {
                 inputEvent.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
             }
             String sampleName = setSampleName(subType);
-            double value = 0.0;
+            double value = NaN;
             if (inputEvent.containsKey(valueAttribute)) {
                 value = parseDouble(inputEvent.get(valueAttribute).toString());
                 inputEvent.remove(valueAttribute);

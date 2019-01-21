@@ -115,6 +115,7 @@ class PrometheusMetricAnalyser {
                                 new SiddhiAppRuntimeException(errorMessage));
                     }
                 }
+                lastValidSample.clear();
                 lastValidSample.addAll(filteredMetrics);
                 generateMaps(filteredMetrics);
             }

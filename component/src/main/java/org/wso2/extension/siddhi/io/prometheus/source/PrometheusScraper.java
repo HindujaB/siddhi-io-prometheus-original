@@ -173,8 +173,8 @@ public class PrometheusScraper implements Runnable {
                 } else {
                     String errorMessage = "Error occurred while retrieving metrics. HTTP error code: " +
                             statusCode;
-                    log.error(errorMessage + " " + response.getNettyHttpResponse().status().toString());
-                    throw new SiddhiAppRuntimeException(errorMessage);
+                    log.error(errorMessage + " " + response.getNettyHttpResponse().status().toString(),
+                            new SiddhiAppRuntimeException(errorMessage));
                 }
             }
         } catch (InterruptedException e) {

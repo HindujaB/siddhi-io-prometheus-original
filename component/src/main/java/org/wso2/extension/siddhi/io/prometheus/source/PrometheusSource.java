@@ -18,7 +18,6 @@
 
 package org.wso2.extension.siddhi.io.prometheus.source;
 
-import org.apache.log4j.Logger;
 import org.wso2.carbon.messaging.Header;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSourceUtil;
@@ -110,7 +109,7 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                 "counter, gauge, histogram and summary. The required Prometheus metric can be specified \n" +
                 "inside the source configuration using the metric name, job name, instance and grouping keys.\n" +
                 "Since the source retrieves the metrics from a text response from the target, it is advised to use " +
-                "\'string\' attribute type for the attributes that correspond the Prometheus metric labels.",
+                "\'string\' attribute type \n for the attributes that correspond the Prometheus metric labels.",
         parameters = {
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
@@ -164,7 +163,9 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                         name = "value.attribute",
                         description = "The name of the attribute in stream definition which specifies the metric " +
                                 "value. The defined value attribute must be included inside the stream attributes. \n" +
-                                "By default, the value attribute is specified as \'value\' ",
+                                "By default, the value attribute is specified as \'value\'.\n The value attribute " +
+                                "does not support 'STRING', 'OBJECT' and 'BOOLEAN' attribute types in the stream " +
+                                "definition." ,
                         optional = true,
                         defaultValue = "value",
                         type = {DataType.STRING}
@@ -245,21 +246,61 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
         examples = {
                 @Example(
                         syntax = "@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', \n" +
-                                "metric.type= 'summary', metric.name= 'sweet_production', @map(type= ‘keyvalue’))\n" +
-                                "define stream FooStream(metric_name string, metric_type string, help string,\n " +
-                                "subtype string, name string, quantity string, quantile string, value double);\n",
+                                "metric.type= 'counter', metric.name= 'sweet_production_counter', value.attribute= " +
+                                "'amount', @map(type= ‘keyvalue’))\n" +
+                                "define stream FooStream1(metric_name string, metric_type string, help string,\n " +
+                                "subtype string, name string, quantity string, amount double);\n",
                         description = "In this example, the prometheus source will make an http request to the " +
                                 "\'target.url\' and analyse the response. From the analysed response, the source " +
-                                "retrieves the Prometheus summary metrics with name 'sweet_production' and " +
+                                "retrieves the Prometheus counter metrics with name 'sweet_production_counter' and " +
                                 "converts the filtered metrics into Siddhi events using the key-value mapper." +
-                                "\nThe generated map will have keys and values as follows, \n" +
-                                "  metric_name  -> <name_of_metric>\n" +
-                                "  metric_type  -> <type_of_metric>\n" +
+                                "\nThe generated maps will have keys and values as follows, \n" +
+                                "  metric_name  -> sweet_production_counter\n" +
+                                "  metric_type  -> counter\n" +
+                                "  help  -> <help_string_of_metric>\n" +
+                                "  subtype  -> null\n" +
+                                "  name -> <value_of_label_name>\n" +
+                                "  quantity -> <value_of_label_quantity>\n" +
+                                "  amount -> <value_of_metric>\n"
+                ),
+                @Example(
+                        syntax = "@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', \n" +
+                                "metric.type= 'summary', metric.name= 'sweet_production_summary', @map(type= " +
+                                "‘keyvalue’))\n define stream FooStream2(metric_name string, metric_type string, help" +
+                                " string,\n subtype string, name string, quantity string, quantile string, value " +
+                                "double);\n",
+                        description = "In this example, the prometheus source will make an http request to the " +
+                                "\'target.url\' and analyse the response. From the analysed response, the source " +
+                                "retrieves the Prometheus summary metrics with name 'sweet_production_summary' and " +
+                                "converts the filtered metrics into Siddhi events using the key-value mapper." +
+                                "\nThe generated maps will have keys and values as follows, \n" +
+                                "  metric_name  -> sweet_production_summary\n" +
+                                "  metric_type  -> summary\n" +
                                 "  help  -> <help_string_of_metric>\n" +
                                 "  subtype  -> <'sum'/'count'/'null'>\n" +
                                 "  name -> <value_of_label_name>\n" +
                                 "  quantity -> <value_of_label_quantity>\n" +
                                 "  quantile  -> <value of the quantile>\n" +
+                                "  value -> <value_of_metric>\n"
+                ),
+                @Example(
+                        syntax = "@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', \n" +
+                                "metric.type= 'histogram', metric.name= 'sweet_production_histogram', @map(type= " +
+                                "‘keyvalue’))\n" +
+                                "define stream FooStream3(metric_name string, metric_type string, help string,\n " +
+                                "subtype string, name string, quantity string, le string, value double);\n",
+                        description = "In this example, the prometheus source will make an http request to the " +
+                                "\'target.url\' and analyse the response. From the analysed response, the source " +
+                                "retrieves the Prometheus histogram metrics with name 'sweet_production_histogram' " +
+                                "and converts the filtered metrics into Siddhi events using the key-value mapper." +
+                                "\nThe generated maps will have keys and values as follows, \n" +
+                                "  metric_name  -> sweet_production_histogram\n" +
+                                "  metric_type  -> histogram\n" +
+                                "  help  -> <help_string_of_metric>\n" +
+                                "  subtype  -> <'sum'/'count'/'bucket'>\n" +
+                                "  name -> <value_of_label_name>\n" +
+                                "  quantity -> <value_of_label_quantity>\n" +
+                                "  le  -> <value of the bucket>\n" +
                                 "  value -> <value_of_metric>\n"
                 )
         },
@@ -360,16 +401,11 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 
 // for more information refer https://wso2.github.io/siddhi/documentation/siddhi-4.0/#sources
 public class PrometheusSource extends Source {
-
-    private static final Logger log = Logger.getLogger(PrometheusSource.class);
     private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-    private PrometheusMetricAnalyser metricAnalyser;
     private String targetURL;
-    private String siddhiAppName;
     private String streamName;
     private String scheme;
     private double scrapeInterval;
-    private static Attribute.Type valueType;
 
     private PrometheusScraper prometheusScraper;
 
@@ -389,7 +425,6 @@ public class PrometheusSource extends Source {
     public void init(SourceEventListener sourceEventListener, OptionHolder optionHolder,
                      String[] requestedTransportPropertyNames, ConfigReader configReader,
                      SiddhiAppContext siddhiAppContext) {
-        siddhiAppName = siddhiAppContext.getName();
         streamName = sourceEventListener.getStreamDefinition().getId();
         PrometheusSourceUtil.setStreamName(streamName);
 
@@ -462,10 +497,10 @@ public class PrometheusSource extends Source {
                     "default scheme is 'https'. Please provide client " +
                     "trustStore file path and password in " + streamName + " of " +
                     PrometheusConstants.PROMETHEUS_SOURCE);
-        } else {
+        }
+        if (PrometheusConstants.HTTPS_SCHEME.equalsIgnoreCase(scheme)) {
             prometheusScraper.setHttpsProperties(clientStoreFile, clientStorePassword);
         }
-
     }
 
     private void configureMetricAnalyser(OptionHolder optionHolder, ConfigReader configReader,
