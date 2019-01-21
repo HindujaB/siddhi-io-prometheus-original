@@ -449,41 +449,37 @@ public class PrometheusSink extends Sink {
 
     @Override
     public void publish(Object payload, DynamicOptions dynamicOptions) throws ConnectionUnavailableException {
-        if (!(payload instanceof Map)) {
-            log.error("The received type of events does not supported in stream " +
-                    "\'" + getStreamDefinition().getId() + "\' of Prometheus sink.");
+        if (PrometheusConstants.PASSTHROUGH_PUBLISH_MODE.equals(publishMode)) {
+            Map<String, Object> payloadMap = (Map<String, Object>) payload;
+            int eventHash = getRefinedMap(PrometheusSinkUtil.cloneMap(payloadMap)).hashCode();
+            passThroughServer.analyseReceivedEvent(payloadMap, eventHash);
         } else {
-            if (PrometheusConstants.PASSTHROUGH_PUBLISH_MODE.equals(publishMode)) {
-                Map<String, Object> payloadMap = (Map<String, Object>) payload;
-                int eventHash = getRefinedMap(PrometheusSinkUtil.cloneMap(payloadMap)).hashCode();
-                passThroughServer.analyseReceivedEvent(payloadMap, eventHash);
-            } else {
-                Map<String, Object> attributeMap = (Map<String, Object>) payload;
-                String[] labels;
-                double value = parseDouble(attributeMap.get(valueAttribute).toString());
-                labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
-                prometheusMetricBuilder.insertValues(value, labels);
-                if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
-                    try {
-                        switch (pushOperation) {
-                            case PrometheusConstants.PUSH_OPERATION:
-                                pushGateway.push(collectorRegistry, jobName, groupingKey);
-                                break;
-                            case PrometheusConstants.PUSH_ADD_OPERATION:
-                                pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
-                                break;
-                            default:
-                                //default will never be executed
-                        }
-                    } catch (IOException e) {
-                        log.error("Unable to establish connection for Prometheus sink associated with " +
-                                        "stream \'" + getStreamDefinition().getId() + "\' at " + pushURL,
-                                new ConnectionUnavailableException(e));
+            Map<String, Object> attributeMap = (Map<String, Object>) payload;
+            String[] labels;
+            double value = parseDouble(attributeMap.get(valueAttribute).toString());
+            labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
+            prometheusMetricBuilder.insertValues(value, labels);
+            if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
+                try {
+                    switch (pushOperation) {
+                        case PrometheusConstants.PUSH_OPERATION:
+                            pushGateway.push(collectorRegistry, jobName, groupingKey);
+                            break;
+                        case PrometheusConstants.PUSH_ADD_OPERATION:
+                            pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
+                            break;
+                        default:
+                            //default will never be executed
                     }
+                } catch (IOException e) {
+                    log.error("Unable to establish connection for Prometheus sink associated with " +
+                                    "stream \'" + getStreamDefinition().getId() + "\' at " + pushURL,
+                            new ConnectionUnavailableException(e));
                 }
             }
         }
     }
+
 
     private Map<String, Object> getRefinedMap(Map<String, Object> payload) {
         payload.remove(PrometheusConstants.MAP_NAME);
