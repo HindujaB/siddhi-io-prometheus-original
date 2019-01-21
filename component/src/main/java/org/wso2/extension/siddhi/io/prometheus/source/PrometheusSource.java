@@ -109,12 +109,8 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                 "schemes for scraping metrics through http requests. The user can retrieve metrics of types \n" +
                 "counter, gauge, histogram and summary. The required Prometheus metric can be specified \n" +
                 "inside the source configuration using the metric name, job name, instance and grouping keys.\n" +
-                "Since the source retrieves the metrics from a text response from the target, supports key-value " +
-                "mapping for histogram and summary metric types, it is advised to use \'string\' attribute type for " +
-                "the attributes that correspond the Prometheus metric labels. The attribute that  " +
-                " the exported metrics must" +
-                " not contain label names starts with \\\"bucket_\\\",\\\"quantile_\\\", \" +\n" +
-                "                \"\\\"sum\\\" or \\\"count\\\".\"",
+                "Since the source retrieves the metrics from a text response from the target, it is advised to use " +
+                "\'string\' attribute type for the attributes that correspond the Prometheus metric labels.",
         parameters = {
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
