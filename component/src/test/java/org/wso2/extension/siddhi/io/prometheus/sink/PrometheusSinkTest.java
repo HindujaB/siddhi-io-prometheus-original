@@ -76,7 +76,6 @@ public class PrometheusSinkTest {
     private static final Logger log = Logger.getLogger(PrometheusSinkTest.class);
     private static String pushgatewayURL;
     private static String serverURL;
-    private static String passThroughServerURL;
     private static ExecutorService executorService;
     private AtomicInteger eventCount = new AtomicInteger(0);
     private AtomicBoolean eventArrived = new AtomicBoolean(false);
@@ -89,11 +88,9 @@ public class PrometheusSinkTest {
         String prometheusPort = System.getenv("PROMETHEUS_PORT");
         String pushPort = System.getenv("PUSHGATEWAY_PORT");
         String serverPort = System.getenv("SERVER_PORT");
-        String passThroughServerPort = System.getenv("PASSTHROUGH_SERVER_PORT");
         String host = System.getenv("HOST_NAME");
         pushgatewayURL = "http://" + host + ":" + pushPort;
         serverURL = "http://" + host + ":" + serverPort;
-        passThroughServerURL = "http://" + host + ":" + passThroughServerPort;
         prometheusServerURL = "http://" + host + ":" + prometheusPort + "/api/v1/query?query=";
         executorService = Executors.newFixedThreadPool(5);
         log.info("== Prometheus sink tests started ==");
@@ -349,81 +346,6 @@ public class PrometheusSinkTest {
         siddhiAppRuntime.shutdown();
     }
 
-    /**
-     * test for Prometheus sink in passThrough publish mode.
-     *
-     * @throws Exception Interrupted exception
-     */
-    @Test(sequential = true)
-    public void prometheusSinkTestPassThroughMode() throws InterruptedException {
-
-        log.info("----------------------------------------------------------------------------------");
-        log.info("Prometheus Sink test with passThrough publish mode");
-        log.info("----------------------------------------------------------------------------------");
-
-        SiddhiManager siddhiManager = new SiddhiManager();
-
-        String streamDefinition = "" +
-                "define stream InputStream (metric_name String, metric_type String, help String, symbol String, " +
-                "price String, subtype String, value int);" +
-                "@sink(type='prometheus'," +
-                "job='prometheusSinkTest'," +
-                "server.url='" + passThroughServerURL + "'," +
-                "publish.mode='passThrough'," +
-                "metric.type='gauge'," +
-                "metric.help= 'PassThrough mode test'," +
-                "metric.name= 'test_metrics_passThrough'," +
-                "@map(type = \'keyvalue\'))"
-                + "Define stream TestStream (metric_name String, metric_type String, help String, symbol String, " +
-                "price String, subtype String, value int);";
-        String query = (
-                "@info(name = 'query') "
-                        + "from InputStream "
-                        + "select *"
-                        + "insert into TestStream;"
-        );
-
-        StreamCallback streamCallback = new StreamCallback() {
-            @Override
-            public void receive(Event[] events) {
-                for (Event event : events) {
-                    eventCount.getAndIncrement();
-                    eventArrived.set(true);
-                }
-            }
-        };
-
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streamDefinition + query);
-        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
-        siddhiAppRuntime.addCallback("TestStream", streamCallback);
-        siddhiAppRuntime.start();
-
-        Object[] data1 = new Object[]{"test_metrics_passThrough", "gauge", "help string", "WSO2", "78.8", "null",
-                100};
-        Object[] data2 = new Object[]{"test_metrics_passThrough", "gauge", "help string", "IBM", "65.32", "null",
-                125};
-
-        List<Object[]> inputEvents = new ArrayList<>();
-        inputHandler.send(data1);
-        inputHandler.send(data2);
-        Thread.sleep(2000);
-        Object[] event1 = new Object[]{"WSO2", 100, 78.8};
-        Object[] event2 = new Object[]{"IBM", 125, 65.32};
-        inputEvents.add(event1);
-        inputEvents.add(event2);
-
-        Assert.assertTrue(eventArrived.get());
-        Thread.sleep(1000);
-        getAndValidateMetrics("test_metrics_passThrough");
-
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 2);
-        } else {
-            Assert.fail("Events does not match");
-        }
-        siddhiAppRuntime.shutdown();
-    }
-
     @Test(sequential = true)
     public void prometheusConnectionTestMultipleSink() throws Exception {
 
@@ -660,104 +582,4 @@ public class PrometheusSinkTest {
         prometheusRecoveryApp.shutdown();
         Thread.sleep(100);
     }
-
-    /**
-     * test for Prometheus source with Prometheus Sink in passThrough mode
-     *
-     * @throws InterruptedException interrupted exception
-     */
-    @Test(sequential = true)
-    public void prometheusSourceTestWithPrometheusSink() throws InterruptedException {
-
-        SiddhiManager siddhiManager = new SiddhiManager();
-        log.info("----------------------------------------------------------------------------------");
-        log.info("Test for Prometheus Source with Prometheus Sink in passThrogh mode.");
-        log.info("----------------------------------------------------------------------------------");
-        String metricType = "counter";
-        String serverPort = System.getenv("SERVER_CONFIG_PORT");
-        String host = System.getenv("HOST_NAME");
-        String url = "http://" + host + ":" + serverPort;
-        String siddhiApp = "@App:name(\"TestSiddhiApp\")\n" +
-                "define stream InputStream (symbol String, value double, price string);" +
-
-                "@sink(type='prometheus', " +
-                "publish.mode = 'server'," +
-                "server.url= '" + serverURL + "', " +
-                "metric.type='counter'," +
-                "metric.name='passthrough_counter',@map(type='keyvalue'))\n" +
-                "define stream FirstSinkStream(symbol string, value double, price string);\n" +
-
-                "@source(type = 'prometheus'," +
-                " target.url = '" + serverURL + "'," +
-                " scheme = 'http'," +
-                " scrape.interval = '3'," +
-                " scrape.timeout = '2'," +
-                " metric.type = 'counter'," +
-                " metric.name = 'passthrough_counter'," +
-                "@map(type = 'keyvalue'))\n" +
-                "Define stream SourceMapTestStream (metric_name String, metric_type String, help String, symbol " +
-                "String, price String, subtype String, value double);\n" +
-
-                "@sink(type='prometheus' ," +
-                "publish.mode = 'passThrough'," +
-                "server.url= '" + url + "', " +
-                "metric.type='counter'," +
-                "metric.name='passthrough_counter_reproduced',@map" +
-                "(type='keyvalue'))\n" +
-                "define stream SecondSinkStream(metric_name String, metric_type String, help String, symbol String, " +
-                "price String, subtype String, value double);\n" +
-
-                "@sink(type = 'log', prefix = 'test')\n" +
-                "define stream OutputStream (metric_name String, metric_type String, help String, symbol String, " +
-                "price String, subtype String, value double);\n" +
-
-                "@info(name = 'queryInputToPrometheusSink') \n" +
-                "from InputStream\n" +
-                "select *\n" +
-                "insert into FirstSinkStream;\n" +
-
-                "@info(name = 'queryPrometheusSourceToPrometheusSink') \n" +
-                "from SourceMapTestStream\n" +
-                "select *\n" +
-                "insert into SecondSinkStream;\n" +
-
-                "@info(name = 'queryPrometheusSourceToLogSink') \n" +
-                "from SourceMapTestStream\n" +
-                "select *\n" +
-                "insert into OutputStream;\n";
-
-        StreamCallback streamCallback = new StreamCallback() {
-            @Override
-            public void receive(Event[] events) {
-                for (Event event : events) {
-                    eventCount.getAndIncrement();
-                    eventArrived.set(true);
-                }
-            }
-        };
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(siddhiApp);
-        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
-        siddhiAppRuntime.addCallback("OutputStream", streamCallback);
-        siddhiAppRuntime.start();
-        Thread.sleep(2000);
-
-        Object[] inputEvent1 = new Object[]{"WSO2", 100, 78.8};
-        Object[] inputEvent2 = new Object[]{"IBM", 125, 65.32};
-        List<Object[]> inputEvents = new ArrayList<>();
-        inputEvents.add(inputEvent1);
-        inputEvents.add(inputEvent2);
-
-        inputHandler.send(inputEvent1);
-        inputHandler.send(inputEvent2);
-        Thread.sleep(4000);
-        Assert.assertTrue(eventArrived.get());
-        getAndValidateMetrics("passthrough_counter_reproduced");
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 2);
-        } else {
-            Assert.fail("Events does not match");
-        }
-        siddhiAppRuntime.shutdown();
-    }
-
 }

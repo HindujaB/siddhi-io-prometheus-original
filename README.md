@@ -52,8 +52,6 @@ Find some useful links below:
      
      * 'server' publish mode : The metrics will be exposed using a http server.
      * 'pushgateway' publish mode : The metrics will be pushed to Prometheus pushgateway. 
-     * 'passThrough' publish mode : This mode must be used with the prometheus-source in a Siddhi app. This mode 
-     exposes the consumed events from the source as Prometheus metrics using a http server.
      
      The metric types that are supported by Prometheus sink are counter, gauge, histogram and summary. And the values and labels of the Prometheus metrics will be updated according to each event.
 

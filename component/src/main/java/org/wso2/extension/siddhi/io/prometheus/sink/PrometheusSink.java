@@ -24,7 +24,6 @@ import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.exporter.PushGateway;
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.sink.util.PrometheusMetricBuilder;
-import org.wso2.extension.siddhi.io.prometheus.sink.util.PrometheusPassThroughServer;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSinkUtil;
 import org.wso2.siddhi.annotation.Example;
@@ -59,7 +58,6 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.D
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.EMPTY_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.HELP_STRING;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.METRIC_TYPE;
-import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PASSTHROUGH_PUBLISH_MODE;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PUSH_ADD_OPERATION;
 import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.PUSH_OPERATION;
@@ -94,7 +92,7 @@ import static java.lang.Double.parseDouble;
                 @Parameter(
                         name = "publish.mode",
                         description = "This parameter specifies the mode of exposing metrics to Prometheus server." +
-                                "The possible publish modes are \'server\', \'pushgateway\' and \'passThrough\'.",
+                                "The possible publish modes are \'server\' and \'pushgateway\'.",
                         defaultValue = "server",
                         optional = true,
                         type = {DataType.STRING}
@@ -111,7 +109,7 @@ import static java.lang.Double.parseDouble;
                 @Parameter(
                         name = "server.url",
                         description = "This parameter specifies the url where the http server will be initiated " +
-                                "to expose metrics for \'server\', \'passThrough\' publish modes. This url must be " +
+                                "to expose metrics for \'server\' publish mode. This url must be " +
                                 "previously defined in prometheus configuration file as a target. By default, the " +
                                 "http server will be initiated at \'http://localhost:9080\'.",
                         optional = true,
@@ -221,17 +219,6 @@ import static java.lang.Double.parseDouble;
                 ),
                 @Example(
                         syntax =
-                                "@sink(type='prometheus',job='inventoryLevel', server.url ='http://localhost:9081'" +
-                                        ",\n publish.mode='passThrough', metric.type='counter', \n" +
-                                        "metric.help= 'Current level of inventory', @map(type='keyvalue'))\n" +
-                                        "define stream InventoryStream (metric_name String, metric_type String, " +
-                                        "help String, Name String, subtype String, value int);\n",
-                        description = " In the above example, the Prometheus-sink will expose the received events " +
-                                "from Prometheus-source through an http server at the target url " +
-                                "with the Stream name and defined attributes as labels. \n"
-                ),
-                @Example(
-                        syntax =
                                 "@sink(type='prometheus',job='inventoryLevel', push.url='http://localhost:9080',\n " +
                                         "publish.mode='pushGateway', metric.type='gauge',\n" +
                                         " metric.help= 'Current level of inventory', @map(type='keyvalue'))\n" +
@@ -308,7 +295,6 @@ public class PrometheusSink extends Sink {
     private HTTPServer server;
     private PushGateway pushGateway;
     private CollectorRegistry collectorRegistry;
-    private PrometheusPassThroughServer passThroughServer;
     private String registeredMetrics;
     private ConfigReader configReader;
 
@@ -380,8 +366,7 @@ public class PrometheusSink extends Sink {
         }
 
         if (!publishMode.equalsIgnoreCase(SERVER_PUBLISH_MODE) &&
-                !publishMode.equalsIgnoreCase(PUSHGATEWAY_PUBLISH_MODE) &&
-                !publishMode.equalsIgnoreCase(PASSTHROUGH_PUBLISH_MODE)) {
+                !publishMode.equalsIgnoreCase(PUSHGATEWAY_PUBLISH_MODE)) {
             throw new SiddhiAppCreationException("Invalid publish mode : " + publishMode + " in Prometheus sink " +
                     "associated with stream \'" + streamID + "\'.");
         }
@@ -449,47 +434,29 @@ public class PrometheusSink extends Sink {
 
     @Override
     public void publish(Object payload, DynamicOptions dynamicOptions) throws ConnectionUnavailableException {
-        if (PrometheusConstants.PASSTHROUGH_PUBLISH_MODE.equals(publishMode)) {
-            Map<String, Object> payloadMap = (Map<String, Object>) payload;
-            int eventHash = getRefinedMap(PrometheusSinkUtil.cloneMap(payloadMap)).hashCode();
-            passThroughServer.analyseReceivedEvent(payloadMap, eventHash);
-        } else {
-            Map<String, Object> attributeMap = (Map<String, Object>) payload;
-            String[] labels;
-            double value = parseDouble(attributeMap.get(valueAttribute).toString());
-            labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
-            prometheusMetricBuilder.insertValues(value, labels);
-            if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
-                try {
-                    switch (pushOperation) {
-                        case PrometheusConstants.PUSH_OPERATION:
-                            pushGateway.push(collectorRegistry, jobName, groupingKey);
-                            break;
-                        case PrometheusConstants.PUSH_ADD_OPERATION:
-                            pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
-                            break;
-                        default:
-                            //default will never be executed
-                    }
-                } catch (IOException e) {
-                    log.error("Unable to establish connection for Prometheus sink associated with " +
-                                    "stream \'" + getStreamDefinition().getId() + "\' at " + pushURL,
-                            new ConnectionUnavailableException(e));
+        Map<String, Object> attributeMap = (Map<String, Object>) payload;
+        String[] labels;
+        double value = parseDouble(attributeMap.get(valueAttribute).toString());
+        labels = PrometheusSinkUtil.populateLabelArray(attributeMap, valueAttribute);
+        prometheusMetricBuilder.insertValues(value, labels);
+        if ((PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE).equals(publishMode)) {
+            try {
+                switch (pushOperation) {
+                    case PrometheusConstants.PUSH_OPERATION:
+                        pushGateway.push(collectorRegistry, jobName, groupingKey);
+                        break;
+                    case PrometheusConstants.PUSH_ADD_OPERATION:
+                        pushGateway.pushAdd(collectorRegistry, jobName, groupingKey);
+                        break;
+                    default:
+                        //default will never be executed
                 }
+            } catch (IOException e) {
+                log.error("Unable to establish connection for Prometheus sink associated with " +
+                                "stream \'" + getStreamDefinition().getId() + "\' at " + pushURL,
+                        new ConnectionUnavailableException(e));
             }
         }
-    }
-
-
-    private Map<String, Object> getRefinedMap(Map<String, Object> payload) {
-        payload.remove(PrometheusConstants.MAP_NAME);
-        payload.remove(PrometheusConstants.MAP_TYPE);
-        payload.remove(PrometheusConstants.MAP_HELP);
-        payload.remove(PrometheusConstants.MAP_SAMPLE_SUBTYPE);
-        payload.remove(PrometheusConstants.QUANTILE_KEY);
-        payload.remove(PrometheusConstants.LE_KEY);
-        payload.remove(valueAttribute);
-        return payload;
     }
 
     @Override
@@ -501,7 +468,6 @@ public class PrometheusSink extends Sink {
                     target = new URL(serverURL);
                     initiateServer(target.getHost(), target.getPort());
                     log.info(getStreamDefinition().getId() + " has successfully connected at " + serverURL);
-                    prometheusMetricBuilder.registerMetric(valueAttribute);
                     break;
                 case PrometheusConstants.PUSHGATEWAY_PUBLISH_MODE:
                     target = new URL(pushURL);
@@ -518,26 +484,15 @@ public class PrometheusSink extends Sink {
                                     new ConnectionUnavailableException(e));
                         }
                     }
-                    prometheusMetricBuilder.registerMetric(valueAttribute);
-                    break;
-                case PrometheusConstants.PASSTHROUGH_PUBLISH_MODE:
-                    target = new URL(serverURL);
-                    initiatePassThroughServer(target);
-                    log.info(getStreamDefinition().getId() + " has successfully connected at " + serverURL + " in " +
-                            "passThrough mode");
                     break;
                 default:
                     //default will never be executed
             }
+            prometheusMetricBuilder.registerMetric(valueAttribute);
         } catch (MalformedURLException e) {
             throw new ConnectionUnavailableException("Error in URL format in Prometheus sink associated with stream \'"
                     + getStreamDefinition().getId() + "\'. \n " + e);
         }
-    }
-
-    private void initiatePassThroughServer(URL target) {
-        passThroughServer = new PrometheusPassThroughServer(target, metricName, metricType, metricHelp, valueAttribute);
-        passThroughServer.start();
     }
 
     private void initiateServer(String host, int port) {
@@ -557,10 +512,6 @@ public class PrometheusSink extends Sink {
     public void disconnect() {
         if (server != null) {
             server.stop();
-            log.info("Server successfully stopped at " + serverURL);
-        }
-        if (passThroughServer != null) {
-            passThroughServer.stop();
             log.info("Server successfully stopped at " + serverURL);
         }
     }

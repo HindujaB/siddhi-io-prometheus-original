@@ -294,8 +294,7 @@ public class SourceValidationTestcase {
         SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
-        log.info("Prometheus Source test without value attribute configuration or" +
-                " 'value' attribute in stream definition");
+        log.info("Prometheus Source test without 'value' attribute in stream definition");
         log.info("----------------------------------------------------------------------------------");
 
         String valueAttribute = "value";
@@ -322,7 +321,7 @@ public class SourceValidationTestcase {
         SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
-        log.info("Prometheus Sink test without value attribute in unsupported type");
+        log.info("Prometheus Sink test with 'value' attribute in unsupported type");
         log.info("----------------------------------------------------------------------------------");
         String sourceStream = "@source(type='prometheus'," +
                 "target.url=\'" + targetURL + "\', " +
