@@ -89,13 +89,12 @@ public class PrometheusScraper implements Runnable {
     }
 
     void setMetricProperties(String metricName, MetricType metricType, String metricJob,
-                             String metricInstance, Map<String, String> metricGroupingKey, String valueAttribute,
+                             String metricInstance, Map<String, String> metricGroupingKey,
                              Attribute.Type valueType) {
         this.metricAnalyser = new PrometheusMetricAnalyser(metricName, metricType, sourceEventListener);
         metricAnalyser.metricJob = metricJob;
         metricAnalyser.metricInstance = metricInstance;
         metricAnalyser.metricGroupingKey = metricGroupingKey;
-        metricAnalyser.valueAttribute = valueAttribute;
         metricAnalyser.valueType = valueType;
     }
 

@@ -101,15 +101,16 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
         name = "prometheus",
         namespace = "source",
         description = "The source consumes Prometheus metrics as Siddhi events which are being exported from the \n" +
-                "specified url through http requests. According to the source configuration, it analyses metrics " +
-                "from the text response \n" +
-                "and send them as Siddhi events through key-value mapping. Prometheus source supports HTTP and HTTPS " +
-                "\n" +
-                "schemes for scraping metrics through http requests. The user can retrieve metrics of types \n" +
-                "counter, gauge, histogram and summary. The required Prometheus metric can be specified \n" +
-                "inside the source configuration using the metric name, job name, instance and grouping keys.\n" +
-                "Since the source retrieves the metrics from a text response from the target, it is advised to use " +
-                "\'string\' attribute type \n for the attributes that correspond the Prometheus metric labels.",
+                "specified url by making http requests. According to the source configuration, \nit analyses metrics " +
+                "from the text response and send them as Siddhi events \nthrough key-value mapping. Prometheus source" +
+                " supports HTTP and HTTPS schemes \nfor scraping metrics through http requests. The user can retrieve" +
+                " metrics of types counter, gauge, \nhistogram and summary. The required Prometheus metric can be " +
+                "specified inside the source configuration \nusing the metric name, job name, instance and grouping " +
+                "keys. Since the source retrieves \nthe metrics from a text response of the target, it is advised to " +
+                "use \'string\' attribute type \n for the attributes that correspond Prometheus metric labels. " +
+                "Further, the Prometheus metric value \nwill be passed through the event as 'value'. Therefore, it " +
+                "is advised to have an attribute with name \n'value' in the stream. The supported types for the " +
+                "attribute 'value' are INT, LONG, FLOAT and DOUBLE. ",
         parameters = {
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
@@ -157,17 +158,6 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                         description = "This property specifies the type of the Prometheus metric that is required. " +
                                 "needed to be fetched. \n The supported metric types are \'counter\', \'gauge\'," +
                                 " \'histogram\' and \'summary\'. ",
-                        type = {DataType.STRING}
-                ),
-                @Parameter(
-                        name = "value.attribute",
-                        description = "The name of the attribute in stream definition which specifies the metric " +
-                                "value. The defined value attribute must be included inside the stream attributes. \n" +
-                                "By default, the value attribute is specified as \'value\'.\n The value attribute " +
-                                "does not support 'STRING', 'OBJECT' and 'BOOLEAN' attribute types in the stream " +
-                                "definition." ,
-                        optional = true,
-                        defaultValue = "value",
                         type = {DataType.STRING}
                 ),
                 @Parameter(
@@ -246,10 +236,10 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
         examples = {
                 @Example(
                         syntax = "@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', \n" +
-                                "metric.type= 'counter', metric.name= 'sweet_production_counter', value.attribute= " +
-                                "'amount', @map(type= ‘keyvalue’))\n" +
+                                "metric.type= 'counter', metric.name= 'sweet_production_counter', @map(type= " +
+                                "‘keyvalue’))\n" +
                                 "define stream FooStream1(metric_name string, metric_type string, help string,\n " +
-                                "subtype string, name string, quantity string, amount double);\n",
+                                "subtype string, name string, quantity string, value double);\n",
                         description = "In this example, the prometheus source will make an http request to the " +
                                 "\'target.url\' and analyse the response. From the analysed response, the source " +
                                 "retrieves the Prometheus counter metrics with name 'sweet_production_counter' and " +
@@ -261,7 +251,7 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                                 "  subtype  -> null\n" +
                                 "  name -> <value_of_label_name>\n" +
                                 "  quantity -> <value_of_label_quantity>\n" +
-                                "  amount -> <value_of_metric>\n"
+                                "  value -> <value_of_metric>\n"
                 ),
                 @Example(
                         syntax = "@source(type= 'prometheus', target.url= 'http://localhost:9080/metrics', \n" +
@@ -516,24 +506,22 @@ public class PrometheusSource extends Source {
         Map<String, String> groupingKeyMap = PrometheusSourceUtil.populateStringMap(
                 optionHolder.validateAndGetStaticValue(PrometheusConstants.METRIC_GROUPING_KEY,
                         PrometheusConstants.EMPTY_STRING));
-        String valueAttribute = optionHolder.validateAndGetStaticValue(
-                PrometheusConstants.VALUE_ATTRIBUTE, PrometheusConstants.VALUE_STRING).trim();
         Attribute.Type valueType;
         try {
-            valueType = getStreamDefinition().getAttributeType(valueAttribute);
+            valueType = getStreamDefinition().getAttributeType(PrometheusConstants.VALUE_STRING);
             if (valueType.equals(Attribute.Type.STRING) || valueType.equals(Attribute.Type.BOOL) ||
                     valueType.equals(Attribute.Type.OBJECT)) {
-                throw new SiddhiAppCreationException("The field value attribute \'" + valueAttribute + "\' contains " +
-                        "unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'"
-                        + streamName + "\'");
+                throw new SiddhiAppCreationException("The attribute \'" + PrometheusConstants.VALUE_STRING + "\' " +
+                        "contains unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with " +
+                        "stream \'" + streamName + "\'");
             }
         } catch (AttributeNotExistException exception) {
-            throw new SiddhiAppCreationException("The value attribute \'" + valueAttribute + "\' is not found " +
-                    "in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamName + "\'");
+            throw new SiddhiAppCreationException("The value attribute \'" + PrometheusConstants.VALUE_STRING + "\' is" +
+                    " not found in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'"
+                    + streamName + "\'");
         }
 
-        prometheusScraper.setMetricProperties(metricName, metricType, job, instance, groupingKeyMap, valueAttribute,
-                valueType);
+        prometheusScraper.setMetricProperties(metricName, metricType, job, instance, groupingKeyMap, valueType);
     }
 
     private void validateNegativeValue(double value) {

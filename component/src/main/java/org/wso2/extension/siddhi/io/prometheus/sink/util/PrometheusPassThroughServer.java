@@ -82,7 +82,7 @@ public class PrometheusPassThroughServer {
         try {
             connectorFactory.shutdown();
         } catch (InterruptedException e) {
-            log.error(e, new SiddhiAppRuntimeException(e));
+            log.error("Error while shutdown the server : " + e, new SiddhiAppRuntimeException(e));
         }
         responseGenerator.clearMaps();
     }

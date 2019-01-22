@@ -314,8 +314,10 @@ public class SourceValidationTestcase {
     }
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
-            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The field value attribute \'(.*)\' contains " +
-                    "unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'(.*)\'")
+            expectedExceptionsMessageRegExp =
+                    ERROR_MESSAGE + "The attribute \'" + PrometheusConstants.VALUE_STRING + "\' " +
+                    "contains unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with " +
+                    "stream \'(.*)\'")
     public void prometheusValidationTest11() throws InterruptedException {
         SiddhiManager siddhiManager = new SiddhiManager();
 

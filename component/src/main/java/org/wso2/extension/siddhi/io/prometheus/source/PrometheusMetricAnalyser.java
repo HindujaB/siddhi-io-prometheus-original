@@ -39,7 +39,6 @@ class PrometheusMetricAnalyser {
 
     private static final Logger log = Logger.getLogger(PrometheusMetricAnalyser.class);
     Attribute.Type valueType;
-    String valueAttribute;
     private String metricName;
     String metricJob;
     String metricInstance;
@@ -155,7 +154,7 @@ class PrometheusMetricAnalyser {
             for (Map.Entry<String, String> entry : labelValueMap.entrySet()) {
                 metricMap.put(entry.getKey(), entry.getValue());
             }
-            metricMap.put(valueAttribute, value);
+            metricMap.put(PrometheusConstants.MAP_SAMPLE_VALUE, value);
             handleEvent(metricMap);
         }
     }
