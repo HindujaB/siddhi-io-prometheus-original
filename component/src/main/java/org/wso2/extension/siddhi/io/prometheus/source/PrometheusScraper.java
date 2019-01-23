@@ -67,17 +67,17 @@ public class PrometheusScraper implements Runnable {
     private final double scrapeTimeout;
     private final String scheme;
     private final List<Header> headers;
+    private final SourceEventListener sourceEventListener;
+    private boolean isPaused = false;
+    private List<String> metricSamples = new ArrayList<>();
+    private HttpClientConnector httpClientConnector;
+    private Map<String, String> urlProperties;
     private String userName = EMPTY_STRING;
     private String password = EMPTY_STRING;
     private String clientStoreFile;
     private String clientStorePassword;
     private List<String> lastValidSamples;
     private PrometheusMetricAnalyser metricAnalyser;
-    private boolean isPaused = false;
-    private List<String> metricSamples = new ArrayList<>();
-    private final SourceEventListener sourceEventListener;
-    private HttpClientConnector httpClientConnector;
-    private Map<String, String> urlProperties;
 
     PrometheusScraper(String targetURL, String scheme, double scrapeTimeout,
                       List<Header> headers, SourceEventListener sourceEventListener) {
@@ -91,11 +91,8 @@ public class PrometheusScraper implements Runnable {
     void setMetricProperties(String metricName, MetricType metricType, String metricJob,
                              String metricInstance, Map<String, String> metricGroupingKey,
                              Attribute.Type valueType) {
-        this.metricAnalyser = new PrometheusMetricAnalyser(metricName, metricType, sourceEventListener);
-        metricAnalyser.metricJob = metricJob;
-        metricAnalyser.metricInstance = metricInstance;
-        metricAnalyser.metricGroupingKey = metricGroupingKey;
-        metricAnalyser.valueType = valueType;
+        this.metricAnalyser = new PrometheusMetricAnalyser(metricName, metricType, metricJob, metricInstance,
+                metricGroupingKey, valueType, sourceEventListener);
     }
 
 

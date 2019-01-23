@@ -20,6 +20,7 @@ package org.wso2.extension.siddhi.io.prometheus.source;
 
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
+import org.wso2.siddhi.core.exception.ConnectionUnavailableException;
 import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 import org.wso2.siddhi.query.api.definition.Attribute;
@@ -38,19 +39,26 @@ import java.util.stream.Collectors;
 class PrometheusMetricAnalyser {
 
     private static final Logger log = Logger.getLogger(PrometheusMetricAnalyser.class);
-    Attribute.Type valueType;
     private final String metricName;
-    String metricJob;
-    String metricInstance;
     private final MetricType metricType;
-    Map<String, String> metricGroupingKey;
-    private String metricHelp;
     private final SourceEventListener sourceEventListener;
     private final List<String> lastValidSample = new ArrayList<>();
+    private final Attribute.Type valueType;
+    private final String metricJob;
+    private final String metricInstance;
+    private final Map<String, String> metricGroupingKey;
+    private String metricHelp;
 
-    PrometheusMetricAnalyser(String metricName, MetricType metricType, SourceEventListener sourceEventListener) {
+
+    PrometheusMetricAnalyser(String metricName, MetricType metricType, String metricJob, String metricInstance,
+                             Map<String, String> metricGroupingKey, Attribute.Type valueType,
+                             SourceEventListener sourceEventListener) {
         this.metricName = metricName;
         this.metricType = metricType;
+        this.metricJob = metricJob;
+        this.metricInstance = metricInstance;
+        this.metricGroupingKey = metricGroupingKey;
+        this.valueType = valueType;
         this.sourceEventListener = sourceEventListener;
     }
 
@@ -65,7 +73,7 @@ class PrometheusMetricAnalyser {
             }
         }
         if (index == -1) {
-            log.error(errorMessage, new SiddhiAppRuntimeException(errorMessage));
+            log.error(errorMessage, new ConnectionUnavailableException(errorMessage));
         } else {
             assignHelpString(metricSamples, index);
             if (!checkMetricType(metricSamples, index)) {

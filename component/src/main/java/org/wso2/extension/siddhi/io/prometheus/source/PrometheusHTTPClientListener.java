@@ -27,8 +27,8 @@ import java.util.concurrent.CountDownLatch;
  * {@code PrometheusHTTPClientListener} Handles the HTTP client listener.
  */
 public class PrometheusHTTPClientListener implements HttpConnectorListener {
-    private HTTPCarbonMessage httpMessage;
     private final CountDownLatch latch;
+    private HTTPCarbonMessage httpMessage;
 
     PrometheusHTTPClientListener(CountDownLatch latch) {
         this.latch = latch;
