@@ -39,14 +39,14 @@ class PrometheusMetricAnalyser {
 
     private static final Logger log = Logger.getLogger(PrometheusMetricAnalyser.class);
     Attribute.Type valueType;
-    private String metricName;
+    private final String metricName;
     String metricJob;
     String metricInstance;
-    private MetricType metricType;
+    private final MetricType metricType;
     Map<String, String> metricGroupingKey;
     private String metricHelp;
-    private SourceEventListener sourceEventListener;
-    private List<String> lastValidSample = new ArrayList<>();
+    private final SourceEventListener sourceEventListener;
+    private final List<String> lastValidSample = new ArrayList<>();
 
     PrometheusMetricAnalyser(String metricName, MetricType metricType, SourceEventListener sourceEventListener) {
         this.metricName = metricName;

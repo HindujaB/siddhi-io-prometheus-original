@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * {@code PrometheusSourceUtil } responsible for util functions of Prometheus-source.
  */
 public class PrometheusSourceUtil {
 

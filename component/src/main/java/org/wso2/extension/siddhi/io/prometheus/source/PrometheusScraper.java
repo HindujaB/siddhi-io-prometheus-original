@@ -63,10 +63,10 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
  */
 public class PrometheusScraper implements Runnable {
     private static final Logger log = Logger.getLogger(PrometheusScraper.class);
-    private String targetURL;
-    private double scrapeTimeout;
-    private String scheme;
-    private List<Header> headers;
+    private final String targetURL;
+    private final double scrapeTimeout;
+    private final String scheme;
+    private final List<Header> headers;
     private String userName = EMPTY_STRING;
     private String password = EMPTY_STRING;
     private String clientStoreFile;
@@ -75,7 +75,7 @@ public class PrometheusScraper implements Runnable {
     private PrometheusMetricAnalyser metricAnalyser;
     private boolean isPaused = false;
     private List<String> metricSamples = new ArrayList<>();
-    private SourceEventListener sourceEventListener;
+    private final SourceEventListener sourceEventListener;
     private HttpClientConnector httpClientConnector;
     private Map<String, String> urlProperties;
 
