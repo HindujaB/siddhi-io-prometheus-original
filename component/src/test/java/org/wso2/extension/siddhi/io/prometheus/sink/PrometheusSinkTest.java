@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Test cases for prometheus sink in server, pushgateway and passThrough publish mode.
+ * Test cases for prometheus sink in server and pushgateway publish modes.
  * Prometheus server and pushgateway must be up and running for the testcases to pass.
  * Targets must be configured inside the Prometheus configuration file (prometheus.yml) as,
  * - job_name: 'server'

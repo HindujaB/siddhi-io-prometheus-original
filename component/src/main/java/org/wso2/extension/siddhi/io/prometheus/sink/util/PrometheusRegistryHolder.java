@@ -47,6 +47,4 @@ class PrometheusRegistryHolder {
             return registerRegistry(hashKey);
         }
     }
-
-
 }
