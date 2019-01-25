@@ -54,17 +54,15 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 @Extension(
         name = "prometheus",
         namespace = "source",
-        description = "The source consumes Prometheus metrics as Siddhi events which are being exported from the \n" +
-                "specified url by making http requests. According to the source configuration, \nit analyses metrics " +
-                "from the text response and send them as Siddhi events \nthrough key-value mapping. Prometheus source" +
-                " supports HTTP and HTTPS schemes \nfor scraping metrics through http requests. The user can retrieve" +
-                " metrics of types counter, gauge, \nhistogram and summary. The required Prometheus metric can be " +
-                "specified inside the source configuration \nusing the metric name, job name, instance and grouping " +
-                "keys. Since the source retrieves \nthe metrics from a text response of the target, it is advised to " +
-                "use \'string\' attribute type \n for the attributes that correspond Prometheus metric labels. " +
-                "Further, the Prometheus metric value \nwill be passed through the event as 'value'. Therefore, it " +
-                "is advised to have an attribute with name \n'value' in the stream. The supported types for the " +
-                "attribute 'value' are INT, LONG, FLOAT and DOUBLE. ",
+        description = "The source consumes Prometheus metrics which are being exported from the specified url \nas " +
+                "Siddhi events by making http requests to the url. \nAccording to the source configuration, it " +
+                "analyses metrics from the text response and send them as Siddhi events \nthrough key-value mapping. " +
+                "The user can retrieve metrics of types counter, gauge, \nhistogram and summary. Since the source " +
+                "retrieves the metrics from a text response of the \ntarget, it is advised to use \'string\' " +
+                "attribute type for the attributes that correspond Prometheus metric labels.\n Further, the " +
+                "Prometheus metric value will be passed through the event as 'value'.\nTherefore, it is advised to " +
+                "have an attribute with name 'value' in the stream. \nThe supported types for the attribute 'value' " +
+                "are INT, LONG, FLOAT and DOUBLE. ",
         parameters = {
                 @Parameter(name = "target.url",
                         description = "This property specifies the target url where the Prometheus metrics are " +
