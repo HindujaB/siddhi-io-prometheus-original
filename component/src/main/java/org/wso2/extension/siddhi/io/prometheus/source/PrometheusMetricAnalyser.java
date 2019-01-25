@@ -62,83 +62,94 @@ class PrometheusMetricAnalyser {
     }
 
     void analyseMetrics(List<String> metricSamples, String targetURL, String streamID) {
-        int index = -1;
-        for (int i = 0; i < metricSamples.size(); i++) {
-            if ((metricSamples.get(i)).startsWith("# HELP " + metricName + " ")) {
-                index = i;
-                break;
-            }
+        int index = searchMetric(metricSamples, "# HELP ");
+        boolean foundHelpString = true;
+        if (index == -1) {
+            foundHelpString = false;
+            index = searchMetric(metricSamples, "# TYPE ");
         }
         if (index == -1) {
             String error = "The specified metric cannot be found inside the http response from the " + targetURL +
                     " of " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamID +
                     "\'.";
             log.error(error, new SiddhiAppRuntimeException(error));
-        } else {
-            assignHelpString(metricSamples, index);
-            if (!checkMetricType(metricSamples, index)) {
-                String error = " The type of the metric retrieved from the target \'" + targetURL + "\' is not " +
-                        "matching with the specified metric type \'" + MetricType.getMetricTypeString(metricType) +
-                        "\' in the " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" +
-                        streamID + "\'. ";
-                log.error(error, new SiddhiAppRuntimeException(error));
-            } else {
-                List<String> retrievedMetrics = metricSamples.stream().filter(
-                        response -> response.startsWith(metricName)).collect(Collectors.toList());
-                List<String> filteredMetrics = new ArrayList<>(retrievedMetrics);
-                if ((!metricJob.equals(PrometheusConstants.EMPTY_STRING) ||
-                        !metricInstance.equals(PrometheusConstants.EMPTY_STRING) || !metricGroupingKey.isEmpty())) {
-                    for (String sampleSingleLine : retrievedMetrics) {
-                        Map<String, String> labelPairMap = filterMetric(sampleSingleLine);
-                        if (!(metricJob.equals(PrometheusConstants.EMPTY_STRING))) {
-                            String job = labelPairMap.get("job");
-                            if (job == null || !job.equalsIgnoreCase(metricJob)) {
-                                filteredMetrics.remove(sampleSingleLine);
-                                continue;
-                            }
-                        }
-                        if (!(metricInstance.equals(PrometheusConstants.EMPTY_STRING))) {
-                            String instance = labelPairMap.get("instance");
-                            if (instance == null || !instance.equalsIgnoreCase(metricInstance)) {
-                                filteredMetrics.remove(sampleSingleLine);
-                                continue;
-                            }
-                        }
-                        if (metricGroupingKey != null) {
-                            for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
-                                String value = labelPairMap.get(entry.getKey());
-                                if (value != null) {
-                                    if (!value.equalsIgnoreCase(entry.getValue())) {
-                                        filteredMetrics.remove(sampleSingleLine);
-                                        break;
-                                    }
-                                } else {
-                                    //if the grouping key not found in the metric,
-                                    filteredMetrics.remove(sampleSingleLine);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (filteredMetrics.isEmpty()) {
-                        String error = " The job, instance or grouping key of the metric retrieved from the target at" +
-                                " \'" + targetURL + "\' is not matching with the specified metric in the " +
-                                PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamID +
-                                "\'. ";
-                        log.error(error, new SiddhiAppRuntimeException(error));
+        }
+        assignHelpString(metricSamples, index, foundHelpString);
+        if (!checkMetricType(metricSamples, index, foundHelpString)) {
+            String error = " The type of the metric retrieved from the target \'" + targetURL + "\' is not " +
+                    "matching with the specified metric type \'" + MetricType.getMetricTypeString(metricType) +
+                    "\' in the " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" +
+                    streamID + "\'. ";
+            log.error(error, new SiddhiAppRuntimeException(error));
+        }
+        List<String> retrievedMetrics = metricSamples.stream().filter(
+                response -> response.startsWith(metricName)).collect(Collectors.toList());
+        List<String> filteredMetrics = new ArrayList<>(retrievedMetrics);
+        if ((!metricJob.equals(PrometheusConstants.EMPTY_STRING) ||
+                !metricInstance.equals(PrometheusConstants.EMPTY_STRING) || !metricGroupingKey.isEmpty())) {
+            for (String sampleSingleLine : retrievedMetrics) {
+                Map<String, String> labelPairMap = filterMetric(sampleSingleLine);
+                if (!(metricJob.equals(PrometheusConstants.EMPTY_STRING))) {
+                    String job = labelPairMap.get("job");
+                    if (job == null || !job.equalsIgnoreCase(metricJob)) {
+                        filteredMetrics.remove(sampleSingleLine);
+                        continue;
                     }
                 }
-                lastValidSample.clear();
-                lastValidSample.addAll(filteredMetrics);
-                generateMaps(filteredMetrics);
+                if (!(metricInstance.equals(PrometheusConstants.EMPTY_STRING))) {
+                    String instance = labelPairMap.get("instance");
+                    if (instance == null || !instance.equalsIgnoreCase(metricInstance)) {
+                        filteredMetrics.remove(sampleSingleLine);
+                        continue;
+                    }
+                }
+                if (metricGroupingKey != null) {
+                    for (Map.Entry<String, String> entry : metricGroupingKey.entrySet()) {
+                        String value = labelPairMap.get(entry.getKey());
+                        if (value != null) {
+                            if (!value.equalsIgnoreCase(entry.getValue())) {
+                                filteredMetrics.remove(sampleSingleLine);
+                                break;
+                            }
+                        } else {
+                            //if the grouping key not found in the metric,
+                            filteredMetrics.remove(sampleSingleLine);
+                            break;
+                        }
+                    }
+                }
+            }
+            if (filteredMetrics.isEmpty()) {
+                String error = " The job, instance or grouping key of the metric retrieved from the target at" +
+                        " \'" + targetURL + "\' is not matching with the specified metric in the " +
+                        PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamID +
+                        "\'. ";
+                log.error(error, new SiddhiAppRuntimeException(error));
             }
         }
+        lastValidSample.clear();
+        lastValidSample.addAll(filteredMetrics);
+        generateMaps(filteredMetrics);
     }
 
-    private void assignHelpString(List<String> metricSamples, int index) {
-        String[] metricHelpArray = metricSamples.get(index).split(" ", 4);
-        this.metricHelp = metricHelpArray[metricHelpArray.length - 1];
+    private int searchMetric(List<String> metricSamples, String metricPropertyString) {
+        int index = -1;
+        for (int i = 0; i < metricSamples.size(); i++) {
+            if ((metricSamples.get(i)).startsWith(metricPropertyString + metricName + " ")) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
 
+    private void assignHelpString(List<String> metricSamples, int index, boolean foundHelpString) {
+        if (foundHelpString) {
+            String[] metricHelpArray = metricSamples.get(index).split(" ", 4);
+            this.metricHelp = metricHelpArray[metricHelpArray.length - 1];
+        } else {
+            this.metricHelp = PrometheusConstants.EMPTY_STRING;
+        }
     }
 
     private void generateMaps(List<String> retrievedMetrics) {
@@ -231,8 +242,12 @@ class PrometheusMetricAnalyser {
         return labelMap;
     }
 
-    private boolean checkMetricType(List<String> metricSamples, int index) {
-        String[] metricTypeArray = metricSamples.get(index + 1).split(" ", 4);
+    private boolean checkMetricType(List<String> metricSamples, int index, boolean foundHelpString) {
+        int i = index;
+        if (!foundHelpString) {
+            i--;
+        }
+        String[] metricTypeArray = metricSamples.get(i + 1).split(" ", 4);
         String metricTypeResponse = metricTypeArray[metricTypeArray.length - 1];
         return metricTypeResponse.equalsIgnoreCase(MetricType.getMetricTypeString(metricType));
     }
