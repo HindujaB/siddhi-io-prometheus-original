@@ -190,9 +190,9 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                                 "define stream FooStream1(metric_name string, metric_type string, help string,\n " +
                                 "subtype string, name string, quantity string, value double);\n",
                         description = "In this example, the prometheus source will make an http request to the " +
-                                "\'target.url\' and analyse the response. From the analysed response, the source " +
-                                "retrieves the Prometheus counter metrics with name 'sweet_production_counter' and " +
-                                "converts the filtered metrics into Siddhi events using the key-value mapper." +
+                                "\'target.url\' \nand analyse the response. From the analysed response, the source " +
+                                "retrieves the Prometheus counter metrics \nwith name 'sweet_production_counter' and " +
+                                "converts the filtered metrics into Siddhi events using \nthe key-value mapper." +
                                 "\nThe generated maps will have keys and values as follows, \n" +
                                 "  metric_name  -> sweet_production_counter\n" +
                                 "  metric_type  -> counter\n" +
@@ -209,9 +209,9 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                                 " string,\n subtype string, name string, quantity string, quantile string, value " +
                                 "double);\n",
                         description = "In this example, the prometheus source will make an http request to the " +
-                                "\'target.url\' and analyse the response. From the analysed response, the source " +
-                                "retrieves the Prometheus summary metrics with name 'sweet_production_summary' and " +
-                                "converts the filtered metrics into Siddhi events using the key-value mapper." +
+                                "\'target.url\' \nand analyse the response. From the analysed response, the source " +
+                                "retrieves the Prometheus summary metrics \nwith name 'sweet_production_summary' and " +
+                                "converts the filtered metrics into Siddhi events using \nthe key-value mapper." +
                                 "\nThe generated maps will have keys and values as follows, \n" +
                                 "  metric_name  -> sweet_production_summary\n" +
                                 "  metric_type  -> summary\n" +
@@ -229,9 +229,9 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
                                 "define stream FooStream3(metric_name string, metric_type string, help string,\n " +
                                 "subtype string, name string, quantity string, le string, value double);\n",
                         description = "In this example, the prometheus source will make an http request to the " +
-                                "\'target.url\' and analyse the response. From the analysed response, the source " +
-                                "retrieves the Prometheus histogram metrics with name 'sweet_production_histogram' " +
-                                "and converts the filtered metrics into Siddhi events using the key-value mapper." +
+                                "\'target.url\' \nand analyse the response. From the analysed response, the source " +
+                                "retrieves the Prometheus histogram metrics \nwith name 'sweet_production_histogram' " +
+                                "and converts the filtered metrics into Siddhi events using \nthe key-value mapper." +
                                 "\nThe generated maps will have keys and values as follows, \n" +
                                 "  metric_name  -> sweet_production_histogram\n" +
                                 "  metric_type  -> histogram\n" +

@@ -213,7 +213,7 @@ import static java.lang.Double.parseDouble;
                                         "publish.mode='server', metric.type='counter', \n" +
                                         "metric.help= 'Number of foo orders', @map(type='keyvalue'))\n" +
                                         "define stream FooCountStream (Name String, quantity int, value int);\n",
-                        description = " In the above example, the Prometheus-sink will create a counter metric " +
+                        description = " In the above example, the Prometheus-sink will create a counter metric \n" +
                                 "with the Stream name and defined attributes as labels. \n The metric will be exposed" +
                                 " through an http server at the target url."
                 ),
@@ -223,7 +223,7 @@ import static java.lang.Double.parseDouble;
                                         "publish.mode='pushGateway', metric.type='gauge',\n" +
                                         " metric.help= 'Current level of inventory', @map(type='keyvalue'))\n" +
                                         "define stream InventoryLevelStream (Name String, value int);\n",
-                        description = " In the above example, the Prometheus-sink will create a gauge metric " +
+                        description = " In the above example, the Prometheus-sink will create a gauge metric \n" +
                                 "with the Stream name and defined attributes as labels.\n" +
                                 "The metric will be pushed to Prometheus pushGateway at the target url."
                 )
