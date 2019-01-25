@@ -62,11 +62,12 @@ class PrometheusMetricAnalyser {
     }
 
     void analyseMetrics(List<String> metricSamples, String targetURL, String streamID) {
-        int index = searchMetric(metricSamples, "# HELP ");
-        boolean foundHelpString = true;
-        if (index == -1) {
-            foundHelpString = false;
-            index = searchMetric(metricSamples, "# TYPE ");
+        int index = -1;
+        for (int i = 0; i < metricSamples.size(); i++) {
+            if ((metricSamples.get(i)).startsWith("# TYPE " + metricName + " ")) {
+                index = i;
+                break;
+            }
         }
         if (index == -1) {
             String error = "The specified metric cannot be found inside the http response from the " + targetURL +
@@ -74,8 +75,8 @@ class PrometheusMetricAnalyser {
                     "\'.";
             log.error(error, new SiddhiAppRuntimeException(error));
         }
-        assignHelpString(metricSamples, index, foundHelpString);
-        if (!checkMetricType(metricSamples, index, foundHelpString)) {
+        assignHelpString(metricSamples, index);
+        if (!checkMetricType(metricSamples, index)) {
             String error = " The type of the metric retrieved from the target \'" + targetURL + "\' is not " +
                     "matching with the specified metric type \'" + MetricType.getMetricTypeString(metricType) +
                     "\' in the " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" +
@@ -132,24 +133,18 @@ class PrometheusMetricAnalyser {
         generateMaps(filteredMetrics);
     }
 
-    private int searchMetric(List<String> metricSamples, String metricPropertyString) {
-        int index = -1;
-        for (int i = 0; i < metricSamples.size(); i++) {
-            if ((metricSamples.get(i)).startsWith(metricPropertyString + metricName + " ")) {
-                index = i;
-                break;
-            }
-        }
-        return index;
-    }
-
-    private void assignHelpString(List<String> metricSamples, int index, boolean foundHelpString) {
-        if (foundHelpString) {
-            String[] metricHelpArray = metricSamples.get(index).split(" ", 4);
-            this.metricHelp = metricHelpArray[metricHelpArray.length - 1];
-        } else {
+    private void assignHelpString(List<String> metricSamples, int index) {
+        if (index == 0) {
             this.metricHelp = PrometheusConstants.EMPTY_STRING;
+            return;
         }
+        String helpString = metricSamples.get(index - 1);
+        if (!helpString.startsWith("# HELP " + metricName + " ")) {
+            this.metricHelp = PrometheusConstants.EMPTY_STRING;
+            return;
+        }
+        String[] metricHelpArray = helpString.split(" ", 4);
+        this.metricHelp = metricHelpArray[metricHelpArray.length - 1];
     }
 
     private void generateMaps(List<String> retrievedMetrics) {
@@ -242,12 +237,8 @@ class PrometheusMetricAnalyser {
         return labelMap;
     }
 
-    private boolean checkMetricType(List<String> metricSamples, int index, boolean foundHelpString) {
-        int i = index;
-        if (!foundHelpString) {
-            i--;
-        }
-        String[] metricTypeArray = metricSamples.get(i + 1).split(" ", 4);
+    private boolean checkMetricType(List<String> metricSamples, int index) {
+        String[] metricTypeArray = metricSamples.get(index).split(" ", 4);
         String metricTypeResponse = metricTypeArray[metricTypeArray.length - 1];
         return metricTypeResponse.equalsIgnoreCase(MetricType.getMetricTypeString(metricType));
     }
