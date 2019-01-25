@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-~ Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+~ Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 ~
 ~ WSO2 Inc. licenses this file to you under the Apache License,
 ~ Version 2.0 (the "License"); you may not use this file except
@@ -130,6 +130,15 @@
         </dependencies>
     </dependencyManagement>
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.wso2.carbon.maven</groupId>
@@ -170,8 +179,9 @@
         <carbon.feature.plugin.version>3.0.0</carbon.feature.plugin.version>
         <testng.version>6.11</testng.version>
         <prometheus.client.version>0.5.0</prometheus.client.version>
-        <keyvalue.mapper.version>1.0.18-SNAPSHOT</keyvalue.mapper.version>
+        <keyvalue.mapper.version>1.0.17</keyvalue.mapper.version>
         <tapestry-json.version>5.4.1.wso2v1</tapestry-json.version>
+        <skip.surefire.test>false</skip.surefire.test>
         <prometheus-test.port>9090</prometheus-test.port>
         <prometheus-pushgateway-test.port>9091</prometheus-pushgateway-test.port>
         <org.wso2.transport.http.version>6.0.163</org.wso2.transport.http.version>

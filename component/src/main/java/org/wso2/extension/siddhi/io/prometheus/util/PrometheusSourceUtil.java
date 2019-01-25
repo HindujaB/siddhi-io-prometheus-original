@@ -1,7 +1,24 @@
+/*
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.extension.siddhi.io.prometheus.util;
 
 import org.wso2.carbon.messaging.Header;
-import org.wso2.extension.siddhi.io.prometheus.source.PrometheusSourceException;
 import org.wso2.siddhi.core.exception.SiddhiAppCreationException;
 import org.wso2.siddhi.core.util.config.ConfigReader;
 import org.wso2.transport.http.netty.common.Constants;
@@ -16,14 +33,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * {@code PrometheusSourceUtil } responsible for util functions of Prometheus-source.
  */
 public class PrometheusSourceUtil {
 
-    private static String streamName;
-
-    public static void setStreamName(String streamName) {
-        PrometheusSourceUtil.streamName = streamName;
+    public static boolean checkEmptyString(String stringValue) {
+        return PrometheusConstants.EMPTY_STRING.equals(stringValue.trim());
     }
 
     public static Map<String, String> getURLProperties(String target, String scheme) throws MalformedURLException {
@@ -63,10 +78,8 @@ public class PrometheusSourceUtil {
             httpSender.setTrustStoreFile(clientStoreFile);
             httpSender.setTrustStorePass(clientStorePass);
             httpSender.setId(urlProperties.get(Constants.TO));
-            httpSender.setScheme(urlProperties.get(Constants.PROTOCOL));
-        } else {
-            httpSender.setScheme(urlProperties.get(Constants.PROTOCOL));
         }
+        httpSender.setScheme(urlProperties.get(Constants.PROTOCOL));
         return httpSender;
     }
 
@@ -77,27 +90,24 @@ public class PrometheusSourceUtil {
      * @param headers string of headers list.
      * @return list of headers.
      */
-    public static List<Header> getHeaders(String headers) {
-        if (!headers.equals(PrometheusConstants.EMPTY_STRING)) {
-            headers = headers.trim();
-            headers = headers.substring(1, headers.length() - 1);
-            List<Header> headersList = new ArrayList<>();
-            if (!PrometheusConstants.EMPTY_STRING.equals(headers)) {
-                String[] spam = headers.split(PrometheusConstants.KEY_VALUE_SEPARATOR);
-                for (String headerValue : spam) {
-                    String[] header = headerValue.split(PrometheusConstants.VALUE_SEPARATOR, 2);
-                    if (header.length > 1) {
-                        headersList.add(new Header(header[0], header[1]));
-                    } else {
-                        throw new PrometheusSourceException(
-                                "Invalid header format. Please include as 'key1:value1','key2:value2',..");
-                    }
-                }
-            }
-            return headersList;
-        } else {
+    public static List<Header> getHeaders(String headers, String streamID) {
+        if (PrometheusSourceUtil.checkEmptyString(headers)) {
             return null;
         }
+        List<Header> headersList = new ArrayList<>();
+        String[] headerArray = headers.trim().split(PrometheusConstants.KEY_VALUE_SEPARATOR);
+        for (String headerValue : headerArray) {
+            headerValue = headerValue.substring(1, headerValue.length() - 1);
+            String[] header = headerValue.split(PrometheusConstants.VALUE_SEPARATOR, 2);
+            if (header.length <= 1) {
+                throw new SiddhiAppCreationException(
+                        "Invalid header format found in " + PrometheusConstants.PROMETHEUS_SOURCE + " " +
+                                "associated with stream \'" + streamID + "\'. Please include them as " +
+                                "'key1:value1', 'key2:value2',..");
+            }
+            headersList.add(new Header(header[0], header[1]));
+        }
+        return headersList;
     }
 
     /**
@@ -107,36 +117,23 @@ public class PrometheusSourceUtil {
      * @param stringInput string of key value pairs.
      * @return map of stringInput.
      */
-    public static Map<String, String> populateStringMap(String stringInput) {
+    public static Map<String, String> populateStringMap(String stringInput, String streamName) {
         Map<String, String> stringMap = new HashMap<>();
-        if (!PrometheusConstants.EMPTY_STRING.equals(stringInput)) {
-            String[] headerList = stringInput.substring(1, stringInput.length() - 1)
-                    .split(PrometheusConstants.KEY_VALUE_SEPARATOR);
-            Arrays.stream(headerList).forEach(valueEntry -> {
-                String[] entry = valueEntry.replaceAll(PrometheusConstants.SINGLE_QUOTE,
-                        PrometheusConstants.EMPTY_STRING).split(PrometheusConstants.VALUE_SEPARATOR, 2);
-                if (entry.length == 2) {
-                    String key = entry[0];
-                    String value = entry[1];
-                    stringMap.put(key, value);
-                } else {
-                    throw new SiddhiAppCreationException(
-                            "Invalid format for key-value input in " + streamName + " of " +
-                                    PrometheusConstants.PROMETHEUS_SOURCE + ". Please include as " +
-                                    "'key1:value1','key2:value2',..");
-                }
-            });
+        if (PrometheusSourceUtil.checkEmptyString(stringInput)) {
+            return stringMap;
         }
-        return stringMap;
-    }
-
-    public static List<Header> setHeaderList(Map<String, String> headers) {
-        List<Header> headerList = new ArrayList<>();
-        if (!headers.isEmpty()) {
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-                headerList.add(new Header(entry.getKey(), entry.getValue()));
+        String[] stringArray = stringInput.trim().split(PrometheusConstants.KEY_VALUE_SEPARATOR);
+        Arrays.stream(stringArray).forEach(valueEntry -> {
+            String[] entry =
+                    valueEntry.substring(1, valueEntry.length() - 1).split(PrometheusConstants.VALUE_SEPARATOR, 2);
+            if (entry.length != 2) {
+                throw new SiddhiAppCreationException(
+                        "Invalid format for key-value input in " + streamName + " of " +
+                                PrometheusConstants.PROMETHEUS_SOURCE + ". Please include as " +
+                                "'key1:value1','key2:value2',..");
             }
-        }
-        return headerList;
+            stringMap.put(entry[0], entry[1]);
+        });
+        return stringMap;
     }
 }

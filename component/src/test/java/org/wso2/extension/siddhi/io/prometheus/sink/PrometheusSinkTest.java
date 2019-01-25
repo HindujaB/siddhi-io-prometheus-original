@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -15,6 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.wso2.extension.siddhi.io.prometheus.sink;
 
 import org.apache.log4j.Logger;
@@ -41,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,30 +54,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Test cases for prometheus sink in server and pushgateway publish mode.
+ * Test cases for prometheus sink in server, pushgateway and passThrough publish mode.
  * Prometheus server and pushgateway must be up and running for the testcases to pass.
  * Targets must be configured inside the Prometheus configuration file (prometheus.yml) as,
  * - job_name: 'server'
  * honor_labels: true
  * static_configs:
  * - targets: ['localhost:9080']
- *
+ * <p>
  * - job_name: 'pushgateway'
  * honor_labels: true
  * static_configs:
  * - targets: ['localhost:9091']
- *
+ * <p>
  * - job_name: 'configurationTest'
- *   honor_labels: true
- *   static_configs:
- *   - targets: ['localhost:9096']
+ * honor_labels: true
+ * static_configs:
+ * - targets: ['localhost:9096']
  */
 public class PrometheusSinkTest {
 
     private static final Logger log = Logger.getLogger(PrometheusSinkTest.class);
     private static String pushgatewayURL;
     private static String serverURL;
-    private static String passThroughServerURL;
     private static ExecutorService executorService;
     private AtomicInteger eventCount = new AtomicInteger(0);
     private AtomicBoolean eventArrived = new AtomicBoolean(false);
@@ -88,14 +89,12 @@ public class PrometheusSinkTest {
         String prometheusPort = System.getenv("PROMETHEUS_PORT");
         String pushPort = System.getenv("PUSHGATEWAY_PORT");
         String serverPort = System.getenv("SERVER_PORT");
-        String passThroughServerPort = System.getenv("PASSTHROUGH_SERVER_PORT");
         String host = System.getenv("HOST_NAME");
         pushgatewayURL = "http://" + host + ":" + pushPort;
         serverURL = "http://" + host + ":" + serverPort;
-        passThroughServerURL = "http://" + host + ":" + passThroughServerPort;
         prometheusServerURL = "http://" + host + ":" + prometheusPort + "/api/v1/query?query=";
         executorService = Executors.newFixedThreadPool(5);
-        log.info("== Prometheus connection tests started ==");
+        log.info("== Prometheus sink tests started ==");
     }
 
     @AfterClass
@@ -104,7 +103,7 @@ public class PrometheusSinkTest {
             executorService.shutdown();
         }
         Thread.sleep(100);
-        log.info("== Prometheus connection tests completed ==");
+        log.info("== Prometheus sink tests completed ==");
     }
 
     @BeforeMethod
@@ -113,6 +112,7 @@ public class PrometheusSinkTest {
         eventArrived.set(false);
         createdEvents.clear();
     }
+
     private void getAndValidateMetrics(String metricName) {
 
         String requestURL = prometheusServerURL + metricName;
@@ -128,7 +128,7 @@ public class PrometheusSinkTest {
             } else {
                 String inputLine;
                 BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                        new InputStreamReader(conn.getInputStream(), Charset.defaultCharset()));
                 while ((inputLine = reader.readLine()) != null) {
                     response.append(inputLine);
                 }
@@ -335,85 +335,6 @@ public class PrometheusSinkTest {
         inputHandler.send(inputEvent2);
         inputEvents.add(inputEvent1);
         inputEvents.add(inputEvent2);
-        Assert.assertTrue(eventArrived.get());
-        Thread.sleep(1000);
-        getAndValidateMetrics("test_metrics");
-
-        if (SiddhiTestHelper.isEventsMatch(inputEvents, createdEvents)) {
-            Assert.assertEquals(eventCount.get(), 2);
-        } else {
-            Assert.fail("Events does not match");
-        }
-        siddhiAppRuntime.shutdown();
-    }
-
-    /**
-     * test for Prometheus sink in passThrough publish mode.
-     *
-     * @throws Exception Interrupted exception
-     */
-    @Test(sequential = true)
-    public void prometheusSinkTestPassThroughMode() throws InterruptedException {
-
-        log.info("----------------------------------------------------------------------------------");
-        log.info("Prometheus Sink test with passThrough publish mode");
-        log.info("----------------------------------------------------------------------------------");
-
-        SiddhiManager siddhiManager = new SiddhiManager();
-
-        String streamDefinition = "" +
-                "define stream InputStream (metric_name String, metric_type String, help String, symbol String, " +
-                "price String, subtype String, value int);" +
-                "@sink(type='prometheus'," +
-                "job='prometheusSinkTest'," +
-                "server.url='" + passThroughServerURL + "'," +
-                "publish.mode='passThrough'," +
-                "metric.type='gauge'," +
-                "metric.help= 'PassThrough mode test'," +
-                "metric.name= 'test_metrics'," +
-                "@map(type = \'keyvalue\'))"
-                + "Define stream TestStream (metric_name String, metric_type String, help String, symbol String, " +
-                "price String, subtype String, value int);";
-        String query = (
-                "@info(name = 'query') "
-                        + "from InputStream "
-                        + "select *"
-                        + "insert into TestStream;"
-        );
-
-        StreamCallback streamCallback = new StreamCallback() {
-            @Override
-            public void receive(Event[] events) {
-                for (Event event : events) {
-                    eventCount.getAndIncrement();
-                    eventArrived.set(true);
-                }
-            }
-        };
-
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streamDefinition + query);
-        InputHandler inputHandler = siddhiAppRuntime.getInputHandler("InputStream");
-        siddhiAppRuntime.addCallback("TestStream", streamCallback);
-        siddhiAppRuntime.start();
-
-        Object[] data1 = new Object[] {"test_metrics", "gauge", "help string", "WSO2", "78.8", "null",
-                100 };
-        Object[] data2 = new Object[] {"test_metrics", "gauge", "help string", "IBM", "65.32", "null",
-                125 };
-
-        List<Object[]> inputEvents = new ArrayList<>();
-        Event inputEvent1 = new Event();
-        inputEvent1.setData(data1);
-        Event inputEvent2 = new Event();
-        inputEvent2.setData(data2);
-        Event[] eventArray = new Event[] {inputEvent1, inputEvent2};
-        inputHandler.send(eventArray);
-        Thread.sleep(2000);
-        Object[] event1 = new Object[]{"WSO2", 100, 78.8};
-        Object[] event2 = new Object[]{"IBM", 125, 65.32};
-        inputEvents.add(event1);
-        inputEvents.add(event2);
-
         Assert.assertTrue(eventArrived.get());
         Thread.sleep(1000);
         getAndValidateMetrics("test_metrics");
