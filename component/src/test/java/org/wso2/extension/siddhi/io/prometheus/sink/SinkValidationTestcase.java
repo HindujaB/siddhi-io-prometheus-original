@@ -63,7 +63,6 @@ public class SinkValidationTestcase {
                         + "insert into SinkTestStream;"
         );
         SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streamDefinition + query);
-        InputHandler inputStream = siddhiAppRuntime.getInputHandler("InputStream");
         siddhiAppRuntime.start();
     }
 
@@ -77,8 +76,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE +
                     "Custom mapping associated with stream \'(.*)\' is not supported by Prometheus sink")
     public void prometheusValidationTest1() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
-
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with custom mapping");
@@ -98,8 +95,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "Invalid publish mode : (.*) in Prometheus sink " +
                     "associated with stream \'(.*)\'.")
     public void prometheusValidationTest2() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
-
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with undefined publish mode");
@@ -121,7 +116,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The \'metric.type\' field in Prometheus sink " +
                     "associated with stream \'(.*)\' contains illegal value")
     public void prometheusValidationTest3() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with undefined metric type");
@@ -142,7 +136,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The buckets field in Prometheus sink associated with " +
                     "stream \'(.*)\' is not supported for metric type \'(.*)\'.")
     public void prometheusValidationTest4() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with unsupported metric type with buckets");
@@ -164,7 +157,6 @@ public class SinkValidationTestcase {
                     "associated with the stream \'(.*)\' is not in the expected format. " +
                     "please insert the numerical values as \"2,3,4,5\".")
     public void prometheusValidationTest5() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with unsupported values for buckets");
@@ -183,7 +175,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The quantiles field in Prometheus sink associated " +
                     "with stream \'(.*)\' is not supported for metric type \'(.*)\'.")
     public void prometheusValidationTest6() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with unsupported metric type for quantiles");
@@ -204,7 +195,6 @@ public class SinkValidationTestcase {
                     "sink associated with stream \'(.*)\' are invalid." +
                     "Please insert values between 0 and 1.")
     public void prometheusValidationTest7() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with unsupported values for quantiles");
@@ -224,7 +214,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "Metric name \'(.*)\' does not match the regex " +
                     "\"(.*)\" in Prometheus sink associated with stream \'(.*)\'.")
     public void prometheusValidationTest8() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with user defined metric name in unsupported format");
@@ -245,7 +234,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The value attribute (.*) is not found " +
                     "in Prometheus sink associated with stream \'(.*)\'")
     public void prometheusValidationTest9() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test without value attribute configuration or" +
@@ -267,7 +255,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The field value attribute \'(.*)\'contains " +
                     "unsupported type in Prometheus sink associated with stream \'(.*)\'")
     public void prometheusValidationTest10() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test without value attribute in unsupported type");
@@ -286,8 +273,6 @@ public class SinkValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "Invalid value for push operation : (.*) in Prometheus" +
                     " sink associated with stream \'(.*)\'.")
     public void prometheusValidationTest11() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
-
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with invalid value for push operation");
@@ -310,7 +295,6 @@ public class SinkValidationTestcase {
                     "with the stream \'(.*)\' is not in the expected format. " +
                     "please insert them as 'key1:val1','key2:val2'.")
     public void prometheusValidationTest12() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with grouping key configuration in unsupported format");

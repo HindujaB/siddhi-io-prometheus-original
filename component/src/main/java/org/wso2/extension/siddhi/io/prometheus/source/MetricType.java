@@ -76,7 +76,8 @@ public enum MetricType {
                 return "summary";
             }
             default: {
-                throw new RuntimeException("Metric type contains illegal value");
+                //default will never be executed
+                return null;
             }
         }
     }

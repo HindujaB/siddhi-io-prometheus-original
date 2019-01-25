@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -123,22 +123,21 @@ public class PrometheusSinkUtil {
      */
     public static Map<String, String> populateGroupingKey(String groupingKeyString, String streamID) {
         Map<String, String> groupingKey = new HashMap<>();
-        if (!PrometheusConstants.EMPTY_STRING.equals(groupingKeyString)) {
-            String[] keyList = groupingKeyString.substring(1, groupingKeyString.length() - 1)
-                    .split(KEY_VALUE_SEPARATOR);
-            Arrays.stream(keyList).forEach(valueEntry -> {
-                String[] entry = valueEntry.split(VALUE_SEPARATOR);
-                if (entry.length == 2) {
-                    String key = entry[0];
-                    String value = entry[1];
-                    groupingKey.put(key, value);
-                } else {
-                    throw new SiddhiAppCreationException("The grouping key field in Prometheus sink associated " +
-                            "with the stream \'" + streamID + "\' is not in the expected format. " +
-                            "please insert them as 'key1:val1','key2:val2'.");
-                }
-            });
+        if (PrometheusConstants.EMPTY_STRING.equals(groupingKeyString)) {
+            return groupingKey;
         }
+        String[] keyList = groupingKeyString.substring(1, groupingKeyString.length() - 1)
+                .split(KEY_VALUE_SEPARATOR);
+        Arrays.stream(keyList).forEach(valueEntry -> {
+            String[] entry = valueEntry.split(VALUE_SEPARATOR);
+            if (entry.length != 2) {
+                throw new SiddhiAppCreationException("The grouping key field in Prometheus sink associated " +
+                        "with the stream \'" + streamID + "\' is not in the expected format. " +
+                        "please insert them as 'key1:val1','key2:val2'.");
+            }
+            groupingKey.put(entry[0], entry[1]);
+
+        });
         return groupingKey;
     }
 

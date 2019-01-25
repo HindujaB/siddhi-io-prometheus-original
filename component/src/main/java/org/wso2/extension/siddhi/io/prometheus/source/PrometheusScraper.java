@@ -29,6 +29,7 @@ import org.apache.log4j.Logger;
 import org.wso2.carbon.messaging.Header;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusSourceUtil;
+import org.wso2.siddhi.core.exception.ConnectionUnavailableException;
 import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 import org.wso2.siddhi.query.api.definition.Attribute;
@@ -64,10 +65,11 @@ import static org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants.E
 public class PrometheusScraper implements Runnable {
     private static final Logger log = Logger.getLogger(PrometheusScraper.class);
     private final String targetURL;
-    private final double scrapeTimeout;
+    private final long scrapeTimeout;
     private final String scheme;
     private final List<Header> headers;
     private final SourceEventListener sourceEventListener;
+    private final String streamName;
     private boolean isPaused = false;
     private List<String> metricSamples = new ArrayList<>();
     private HttpClientConnector httpClientConnector;
@@ -77,15 +79,19 @@ public class PrometheusScraper implements Runnable {
     private String clientStoreFile;
     private String clientStorePassword;
     private List<String> lastValidSamples;
+    private CompletionCallback completionCallback;
     private PrometheusMetricAnalyser metricAnalyser;
+    private HttpWsConnectorFactory httpConnectorFactory = new DefaultHttpWsConnectorFactory();
+    private HTTPCarbonMessage httpRequest;
 
-    PrometheusScraper(String targetURL, String scheme, double scrapeTimeout,
-                      List<Header> headers, SourceEventListener sourceEventListener) {
+    PrometheusScraper(String targetURL, String scheme, long scrapeTimeout,
+                      List<Header> headers, SourceEventListener sourceEventListener, String streamName) {
         this.targetURL = targetURL;
         this.scheme = scheme;
         this.scrapeTimeout = scrapeTimeout;
         this.headers = headers;
         this.sourceEventListener = sourceEventListener;
+        this.streamName = streamName;
     }
 
     void setMetricProperties(String metricName, MetricType metricType, String metricJob,
@@ -96,54 +102,55 @@ public class PrometheusScraper implements Runnable {
     }
 
 
-    void setAuthorizationHeader(String userName, String password) {
+    void setAuthorizationCredentials(String userName, String password) {
         this.userName = userName;
         this.password = password;
     }
 
     void setHttpsProperties(String clientStoreFile, String clientStorePassword) {
-        if (scheme.equalsIgnoreCase(PrometheusConstants.HTTPS_SCHEME)) {
-            this.clientStoreFile = clientStoreFile;
-            this.clientStorePassword = clientStorePassword;
-        }
+        this.clientStoreFile = clientStoreFile;
+        this.clientStorePassword = clientStorePassword;
+
     }
 
-    void connectHTTPClient() {
+    void setCompletionCallback(CompletionCallback completionCallback) {
+        this.completionCallback = completionCallback;
+    }
+
+    void createConnectionChannel() {
         try {
             urlProperties = PrometheusSourceUtil.getURLProperties(targetURL, scheme);
         } catch (MalformedURLException e) {
-            log.error("Error in target URL format : " + e);
+            //target URL is already validated.
         }
         SenderConfiguration senderConfiguration = PrometheusSourceUtil.getSenderConfigurations(urlProperties,
                 clientStoreFile, clientStorePassword);
-        if (scrapeTimeout != -1) {
-            senderConfiguration.setSocketIdleTimeout((int) (scrapeTimeout * 1000));
-        }
-        if (!(EMPTY_STRING.equals(userName) || EMPTY_STRING.equals(password))) {
+        senderConfiguration.setSocketIdleTimeout((int) (scrapeTimeout * 1000));
+        if (!(PrometheusSourceUtil.checkEmptyString(userName) || PrometheusSourceUtil.checkEmptyString(password))) {
             String basicAuthHeader = "Basic " + encode(userName + ":" + password);
             headers.add(new Header(PrometheusConstants.AUTHORIZATION_HEADER, basicAuthHeader));
         }
-        HttpWsConnectorFactory httpConnectorFactory = new DefaultHttpWsConnectorFactory();
         httpClientConnector = httpConnectorFactory.createHttpClientConnector(new HashMap<>(),
                 senderConfiguration);
     }
 
-    private void retrieveMetricSamples() throws IOException {
-        List<String> responseMetrics = sendRequest(httpClientConnector, urlProperties, headers);
-        String errorMessage = PrometheusConstants.EMPTY_STRING;
+    private void retrieveMetricSamples() throws ConnectionUnavailableException {
+        List<String> responseMetrics = sendRequest();
+        String errorMessage = null;
         if (responseMetrics == null) {
             errorMessage = "Error occurred while retrieving metrics at " + targetURL + ". Error : Response is null.";
-        } else if (responseMetrics.isEmpty()) {
-            errorMessage = "The target at" + targetURL + "returns an empty response";
-        }
-        if (!errorMessage.equals(PrometheusConstants.EMPTY_STRING)) {
-            log.error(errorMessage, new SiddhiAppRuntimeException(errorMessage));
         } else {
-            if (!responseMetrics.equals(metricSamples)) {
-                metricSamples = responseMetrics;
-                metricAnalyser.analyseMetrics(metricSamples, targetURL);
-                this.lastValidSamples = metricAnalyser.getLastValidSamples();
+            if (responseMetrics.isEmpty()) {
+                errorMessage = "The target at " + targetURL + " returns an empty response";
             }
+        }
+        if (errorMessage != null) {
+            log.error(errorMessage, new SiddhiAppRuntimeException(errorMessage));
+        }
+        if (!responseMetrics.equals(metricSamples)) {
+            metricSamples = responseMetrics;
+            metricAnalyser.analyseMetrics(metricSamples, targetURL, streamName);
+            this.lastValidSamples = metricAnalyser.getLastValidSamples();
         }
     }
 
@@ -153,23 +160,16 @@ public class PrometheusScraper implements Runnable {
         return encodedByteBuf.toString(StandardCharsets.UTF_8);
     }
 
-    private static List<String> sendRequest(HttpClientConnector clientConnector, Map<String, String> urlProperties,
-                                            List<Header> headerList) throws IOException {
+    private List<String> sendRequest() throws ConnectionUnavailableException {
         List<String> responsePayload = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
-
-        HttpMethod httpReqMethod = new HttpMethod(PrometheusConstants.DEFAULT_HTTP_METHOD);
-        HTTPCarbonMessage carbonMessage = new HTTPCarbonMessage(new DefaultHttpRequest(HttpVersion.HTTP_1_1,
-                httpReqMethod, EMPTY_STRING));
-        carbonMessage = generateCarbonMessage(headerList, urlProperties, carbonMessage);
-        carbonMessage.completeMessage();
-        HttpResponseFuture httpResponseFuture = clientConnector.send(carbonMessage);
-
+        HTTPCarbonMessage carbonMessage = generateCarbonMessage();
+        HttpResponseFuture httpResponseFuture = httpClientConnector.send(carbonMessage);
         PrometheusHTTPClientListener httpListener = new PrometheusHTTPClientListener(latch);
         httpResponseFuture.setHttpConnectorListener(httpListener);
         BufferedReader bufferedReader = null;
         try {
-            if (latch.await(30, TimeUnit.SECONDS)) {
+            if (latch.await(scrapeTimeout + 10, TimeUnit.SECONDS)) {
                 HTTPCarbonMessage response = httpListener.getHttpResponseMessage();
                 bufferedReader = new BufferedReader(new InputStreamReader(
                         new HttpMessageDataStreamer(response).getInputStream(), Charset.defaultCharset()));
@@ -179,22 +179,29 @@ public class PrometheusScraper implements Runnable {
                 } else {
                     String errorMessage = "Error occurred while retrieving metrics. HTTP error code: " +
                             statusCode;
-                    log.error(errorMessage + " " + response.getNettyHttpResponse().status().toString(),
-                            new SiddhiAppRuntimeException(errorMessage));
+                    throw new ConnectionUnavailableException(errorMessage);
                 }
             }
         } catch (InterruptedException e) {
-            log.debug("Thread waiting time-out issue: " + e);
+            log.error(" Interrupted exception thrown in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with" +
+                    " stream " + streamName + " while sending request.", e);
         } finally {
             if (bufferedReader != null) {
-                bufferedReader.close();
+                try {
+                    bufferedReader.close();
+                } catch (IOException e) {
+                    log.error(" IO exception thrown in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with" +
+                            " stream " + streamName + " while closing the Buffered reader.", e);
+                }
             }
         }
         return responsePayload;
     }
 
-    private static HTTPCarbonMessage generateCarbonMessage(List<Header> headers, Map<String, String> urlProperties,
-                                                           HTTPCarbonMessage carbonMessage) {
+    private HTTPCarbonMessage generateCarbonMessage() {
+        HttpMethod httpReqMethod = new HttpMethod(PrometheusConstants.DEFAULT_HTTP_METHOD);
+        HTTPCarbonMessage carbonMessage = new HTTPCarbonMessage(new DefaultHttpRequest(HttpVersion.HTTP_1_1,
+                httpReqMethod, EMPTY_STRING));
         carbonMessage.setProperty(Constants.PROTOCOL, urlProperties.get(Constants.PROTOCOL));
         carbonMessage.setProperty(Constants.TO, urlProperties.get(Constants.TO));
         carbonMessage.setProperty(Constants.HTTP_HOST, urlProperties.get(Constants.HTTP_HOST));
@@ -203,7 +210,6 @@ public class PrometheusScraper implements Runnable {
         carbonMessage.setProperty(Constants.REQUEST_URL, urlProperties.get(Constants.REQUEST_URL));
         HttpHeaders httpHeaders = carbonMessage.getHeaders();
         httpHeaders.set(Constants.HTTP_HOST, carbonMessage.getProperty(Constants.HTTP_HOST));
-
         if (headers != null) {
             for (Header header : headers) {
                 httpHeaders.set(header.getName(), header.getValue());
@@ -211,6 +217,7 @@ public class PrometheusScraper implements Runnable {
         }
         httpHeaders.set(PrometheusConstants.HTTP_CONTENT_TYPE, PrometheusConstants.TEXT_PLAIN);
         httpHeaders.set(PrometheusConstants.HTTP_METHOD, PrometheusConstants.DEFAULT_HTTP_METHOD);
+        carbonMessage.completeMessage();
         return carbonMessage;
     }
 
@@ -219,9 +226,8 @@ public class PrometheusScraper implements Runnable {
         if (!isPaused) {
             try {
                 retrieveMetricSamples();
-            } catch (Throwable e) {
-                log.error("Error while retrieve and analyse metrics. \nError : " + e,
-                        new SiddhiAppRuntimeException(e));
+            } catch (ConnectionUnavailableException e) {
+                completionCallback.handle(e);
             }
         }
     }
@@ -249,5 +255,26 @@ public class PrometheusScraper implements Runnable {
         if (lastValidSamples != null) {
             lastValidSamples.clear();
         }
+    }
+
+    void clearConnectorFactory() {
+        try {
+            httpConnectorFactory.shutdown();
+        } catch (InterruptedException e) {
+            log.error(" Interrupted exception thrown in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with" +
+                    " stream " + streamName + " while disconnecting.", e);
+        }
+    }
+
+    /**
+     * A callback function to be notified when {@code PrometheusScraper} throws an Error.
+     */
+    public interface CompletionCallback {
+        /**
+         * Handle errors from {@link PrometheusScraper}.
+         *
+         * @param error the error.
+         */
+        void handle(Throwable error);
     }
 }

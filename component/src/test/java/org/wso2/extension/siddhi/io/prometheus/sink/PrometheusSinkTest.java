@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -127,7 +128,7 @@ public class PrometheusSinkTest {
             } else {
                 String inputLine;
                 BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                        new InputStreamReader(conn.getInputStream(), Charset.defaultCharset()));
                 while ((inputLine = reader.readLine()) != null) {
                     response.append(inputLine);
                 }

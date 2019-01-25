@@ -20,7 +20,6 @@ package org.wso2.extension.siddhi.io.prometheus.source;
 
 import org.apache.log4j.Logger;
 import org.wso2.extension.siddhi.io.prometheus.util.PrometheusConstants;
-import org.wso2.siddhi.core.exception.ConnectionUnavailableException;
 import org.wso2.siddhi.core.exception.SiddhiAppRuntimeException;
 import org.wso2.siddhi.core.stream.input.source.SourceEventListener;
 import org.wso2.siddhi.query.api.definition.Attribute;
@@ -62,23 +61,27 @@ class PrometheusMetricAnalyser {
         this.sourceEventListener = sourceEventListener;
     }
 
-    void analyseMetrics(List<String> metricSamples, String targetURL) {
-
-        String errorMessage = "Metric cannot be found inside the http response from " + targetURL + ".";
-
+    void analyseMetrics(List<String> metricSamples, String targetURL, String streamID) {
         int index = -1;
         for (int i = 0; i < metricSamples.size(); i++) {
             if ((metricSamples.get(i)).startsWith("# HELP " + metricName + " ")) {
                 index = i;
+                break;
             }
         }
         if (index == -1) {
-            log.error(errorMessage, new ConnectionUnavailableException(errorMessage));
+            String error = "The specified metric cannot be found inside the http response from the " + targetURL +
+                    " of " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamID +
+                    "\'.";
+            log.error(error, new SiddhiAppRuntimeException(error));
         } else {
             assignHelpString(metricSamples, index);
             if (!checkMetricType(metricSamples, index)) {
-                log.error(errorMessage + " Metric type mismatching.",
-                        new SiddhiAppRuntimeException(errorMessage));
+                String error = " The type of the metric retrieved from the target \'" + targetURL + "\' is not " +
+                        "matching with the specified metric type \'" + MetricType.getMetricTypeString(metricType) +
+                        "\' in the " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" +
+                        streamID + "\'. ";
+                log.error(error, new SiddhiAppRuntimeException(error));
             } else {
                 List<String> retrievedMetrics = metricSamples.stream().filter(
                         response -> response.startsWith(metricName)).collect(Collectors.toList());
@@ -118,8 +121,11 @@ class PrometheusMetricAnalyser {
                         }
                     }
                     if (filteredMetrics.isEmpty()) {
-                        log.error(errorMessage + " Mismatching metric job, instance or grouping key.",
-                                new SiddhiAppRuntimeException(errorMessage));
+                        String error = " The job, instance or grouping key of the metric retrieved from the target at" +
+                                " \'" + targetURL + "\' is not matching with the specified metric in the " +
+                                PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" + streamID +
+                                "\'. ";
+                        log.error(error, new SiddhiAppRuntimeException(error));
                     }
                 }
                 lastValidSample.clear();

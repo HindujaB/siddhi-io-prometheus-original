@@ -1,4 +1,3 @@
-package org.wso2.extension.siddhi.io.prometheus.source;
 /*
  * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
@@ -16,6 +15,8 @@ package org.wso2.extension.siddhi.io.prometheus.source;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.wso2.extension.siddhi.io.prometheus.source;
 
 import org.wso2.transport.http.netty.contract.HttpConnectorListener;
 import org.wso2.transport.http.netty.message.HTTPCarbonMessage;

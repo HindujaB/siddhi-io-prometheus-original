@@ -69,10 +69,9 @@ public class SourceValidationTestcase {
     }
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
-            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The field \'scheme\' contains unsupported value in " +
-                    "(.*) of " + PrometheusConstants.PROMETHEUS_SOURCE)
+            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The field \'scheme\' contains unsupported value \'tcp" +
+                    "\' in (.*) of " + PrometheusConstants.PROMETHEUS_SOURCE)
     public void prometheusValidationTest1() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with invalid scheme");
@@ -96,7 +95,6 @@ public class SourceValidationTestcase {
                     " field of " +
                     "" + PrometheusConstants.PROMETHEUS_SOURCE + " in (.*)")
     public void prometheusValidationTest2() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with empty target URL");
@@ -116,10 +114,9 @@ public class SourceValidationTestcase {
     }
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
-            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The value of fields scrape interval or scrape timeout " +
-                    "from " + PrometheusConstants.PROMETHEUS_SOURCE + " cannot be negative in (.*)")
+            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The value \'-3\' of field \'scrape.interval\' from " +
+                    PrometheusConstants.PROMETHEUS_SOURCE + " cannot be negative in (.*)")
     public void prometheusValidationTest3() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with negative value for scrape interval");
@@ -139,10 +136,32 @@ public class SourceValidationTestcase {
     }
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
+            expectedExceptionsMessageRegExp = ERROR_MESSAGE + "Invalid value \'time\' is found inside the field" +
+                    " \'scrape.timeout\' from " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'" +
+                    "(.*)\'. Please provide a valid numeric value.")
+    public void prometheusValidationTest4() throws InterruptedException {
+
+        log.info("----------------------------------------------------------------------------------");
+        log.info("Prometheus Source test with invalid value for scrape timeout");
+        log.info("----------------------------------------------------------------------------------");
+
+        String sourceStream = "@source(type='prometheus'," +
+                "target.url=\'" + targetURL + "\', " +
+                "scheme = 'http'," +
+                "scrape.interval = '2'," +
+                "scrape.timeout = 'time'," +
+                "metric.type='histogram'," +
+                "metric.name='test_histogram'," +
+                "@map(type = 'keyvalue'))" +
+                "Define stream SourceTestStream (metric_name String, metric_type String, help String, name String," +
+                " age String, subtype String, le String, value double);";
+        startSiddhiApp(sourceStream);
+    }
+
+    @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "Please provide user name and password in " +
                     PrometheusConstants.PROMETHEUS_SOURCE + " associated with the stream ().* in Siddhi app (.*)")
-    public void prometheusValidationTest4() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+    public void prometheusValidationTest5() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with either empty user name or password");
@@ -167,8 +186,7 @@ public class SourceValidationTestcase {
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "Client trustStore file path or password are empty " +
                     "while default scheme is 'https'. Please provide client trustStore file path and password in (.*)" +
                     " of (.*)")
-    public void prometheusValidationTest5() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+    public void prometheusValidationTest6() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test without client trust store file or password in https scheme");
@@ -191,9 +209,8 @@ public class SourceValidationTestcase {
 
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The Prometheus source associated with stream (.*) " +
-                    "contains an invalid value for target URL")
-    public void prometheusValidationTest6() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+                    "contains an invalid value \'hs:local-host:9080\' for target URL")
+    public void prometheusValidationTest7() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with invalid target URL ");
@@ -217,8 +234,7 @@ public class SourceValidationTestcase {
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The provided scheme and the scheme of target URL are " +
                     "not matching in Prometheus source associated with stream (.*)")
-    public void prometheusValidationTest7() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+    public void prometheusValidationTest8() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with non matching values in scheme and target URL ");
@@ -242,8 +258,7 @@ public class SourceValidationTestcase {
                     ERROR_MESSAGE + "Invalid header format found in " + PrometheusConstants.PROMETHEUS_SOURCE + " " +
                             "associated with stream \'(.*)\'. Please include them as " +
                             "'key1:value1', 'key2:value2',..")
-    public void prometheusValidationTest8() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+    public void prometheusValidationTest9() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with incorrect format of key-value input ");
@@ -267,8 +282,7 @@ public class SourceValidationTestcase {
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The \'metric.type\' field in " +
                     PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'(.*)\' contains illegal value")
-    public void prometheusValidationTest9() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+    public void prometheusValidationTest10() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test with invalid metric type ");
@@ -290,8 +304,7 @@ public class SourceValidationTestcase {
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp = ERROR_MESSAGE + "The value attribute \'(.*)\' is not found " +
                     "in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with stream \'(.*)\'")
-    public void prometheusValidationTest10() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+    public void prometheusValidationTest11() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Source test without 'value' attribute in stream definition");
@@ -315,10 +328,9 @@ public class SourceValidationTestcase {
     @Test(expectedExceptions = SiddhiAppCreationException.class,
             expectedExceptionsMessageRegExp =
                     ERROR_MESSAGE + "The attribute \'" + PrometheusConstants.VALUE_STRING + "\' " +
-                    "contains unsupported type in " + PrometheusConstants.PROMETHEUS_SOURCE + " associated with " +
-                    "stream \'(.*)\'")
-    public void prometheusValidationTest11() throws InterruptedException {
-        SiddhiManager siddhiManager = new SiddhiManager();
+                            "contains unsupported type \'STRING\' in " + PrometheusConstants.PROMETHEUS_SOURCE +
+                            " associated with stream \'(.*)\'")
+    public void prometheusValidationTest12() throws InterruptedException {
 
         log.info("----------------------------------------------------------------------------------");
         log.info("Prometheus Sink test with 'value' attribute in unsupported type");

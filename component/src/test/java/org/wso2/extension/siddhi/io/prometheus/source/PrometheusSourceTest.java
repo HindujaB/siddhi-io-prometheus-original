@@ -62,8 +62,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PrometheusSourceTest {
 
     private static final Logger log = Logger.getLogger(PrometheusSourceTest.class);
-    private static String targetURL;
-    private static HTTPServer server;
+    private String targetURL;
+    private HTTPServer server;
     private String serverPort;
     private AtomicInteger eventCount = new AtomicInteger(0);
     private AtomicBoolean eventArrived = new AtomicBoolean(false);
@@ -188,7 +188,7 @@ public class PrometheusSourceTest {
                 "target.url=\'" + targetURL + "\', " +
                 "scheme = 'http'," +
                 "scrape.interval = '1'," +
-                "scrape.timeout = '0.5'," +
+                "scrape.timeout = '5'," +
                 "metric.type='" + metricType + "'," +
                 "metric.name='counter_test'," +
                 "@map(type = 'keyvalue'))" +
@@ -261,7 +261,7 @@ public class PrometheusSourceTest {
         String siddhiApp = "@App:name('TestSiddhiApp2')";
         String sourceStream = "@source(type='prometheus'," +
                 "scheme = 'http'," +
-                "scrape.timeout = '0.5'," +
+                "scrape.timeout = '5'," +
                 "metric.type='" + metricType + "'," +
                 "metric.name='gauge_test'," +
                 "@map(type = 'keyvalue'))" +
@@ -333,7 +333,7 @@ public class PrometheusSourceTest {
                 "scheme = 'http'," +
                 "target.url=\'" + targetURL + "\', " +
                 "scrape.interval = '1'," +
-                "scrape.timeout = '0.5'," +
+                "scrape.timeout = '5'," +
                 "metric.type='" + metricType + "'," +
                 "metric.name='histogram_test'," +
                 "@map(type = 'keyvalue'))" +
