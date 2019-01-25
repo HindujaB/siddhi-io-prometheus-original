@@ -33,9 +33,7 @@ markdown_extensions:
 pages:
 - Welcome to WSO2 Siddhi IO Prometheus: index.md
 - API Docs:
-  - Latest (): api/latest.md
-  - ? ''
-    : api/.md
+  - latest: api/latest.md
 - License: about/license.md
   theme:
     name: material
